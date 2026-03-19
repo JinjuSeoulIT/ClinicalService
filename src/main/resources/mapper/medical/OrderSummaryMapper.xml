@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.hospitalClinical.medicalOrderManagement.mapper.OrderSummaryMapper">
+
+    <resultMap id="orderSummaryResultMap" type="com.example.hospitalClinical.medicalOrderManagement.dto.OrderSummaryDTO">
+        <id property="orderId" column="ORDER_ID"/>
+        <result property="visitId" column="VISIT_ID"/>
+        <result property="orderType" column="ORDER_TYPE"/>
+        <result property="orderStatus" column="ORDER_STATUS"/>
+        <result property="orderDate" column="ORDER_DATE"/>
+        <result property="itemCount" column="ITEM_COUNT"/>
+    </resultMap>
+
+    <select id="findOrderSummariesByVisitId" resultMap="orderSummaryResultMap">
+        SELECT o.ORDER_ID,
+               o.VISIT_ID,
+               o.ORDER_TYPE,
+               o.ORDER_STATUS,
+               o.ORDER_DATE,
+               (SELECT COUNT(*) FROM SSH.CLINICAL_ORDER_ITEM i WHERE i.ORDER_ID = o.ORDER_ID) AS ITEM_COUNT
+        FROM SSH.CLINICAL_ORDER o
+        WHERE o.VISIT_ID = #{visitId}
+        ORDER BY o.ORDER_DATE DESC
+    </select>
+</mapper>
