@@ -1,6 +1,12 @@
 package com.example.hospitalClinical.encounter.service;
 
+import com.example.hospitalClinical.common.exception.BusinessException;
+import com.example.hospitalClinical.common.exception.ErrorCode;
+import com.example.hospitalClinical.common.client.internal.reception.ReceptionClient;
+import com.example.hospitalClinical.common.client.internal.reception.ReceptionResponse;
+import com.example.hospitalClinical.common.client.internal.reception.ReceptionStatusUpdateRequest;
 import com.example.hospitalClinical.encounter.dto.VisitCreateRequest;
+import com.example.hospitalClinical.encounter.dto.VisitStartRequest;
 import com.example.hospitalClinical.encounter.entity.Visit;
 import com.example.hospitalClinical.encounter.entity.VisitQueue;
 import com.example.hospitalClinical.encounter.entity.VisitStatusHistory;
@@ -13,7 +19,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -22,20 +27,84 @@ import java.util.List;
 @Slf4j
 public class EncounterServiceImpl implements EncounterService {
 
+    private static final java.util.Set<String> STARTABLE_RECEPTION_STATUSES = java.util.Set.of("WAITING", "CALLED");
+
     private final VisitRepo visitRepo;
     private final VisitStatusHistoryRepo visitStatusHistoryRepo;
     private final VisitQueueRepo visitQueueRepo;
+    private final ReceptionClient receptionClient;
 
+    @Override
+    @Transactional
+    public Visit startVisit(VisitStartRequest request) {
+         //접수 조회(외부API)-트랜잭션아님.//
+        Long receptionId = request.getReceptionId();
+        ReceptionResponse reception = receptionClient.getReception(receptionId);
+        //상태 검증//
+        String status = reception.getStatus() != null ? reception.getStatus().trim().toUpperCase() : "";
+
+        if (!STARTABLE_RECEPTION_STATUSES.contains(status)) {
+            throw new BusinessException(ErrorCode.RECEPTION_INVALID_STATUS);
+        }       //조건 안 맞으면 여기서 종료(DB 변경 없음)
+        Long patientId = reception.getPatientId();
+        Long doctorId = reception.getDoctorId();
+        if (patientId == null || doctorId == null) {
+            throw new BusinessException(ErrorCode.RECEPTION_API_ERROR, "접수 정보에 환자/의사 정보가 없습니다.");
+        }   //추가 검증 환자/의사
+        // 중복 체크 (DB)//
+        List<Visit> existing = visitRepo.findByReceptionIdAndVisitStatus(receptionId, "IN_PROGRESS");
+            //DB조회(트랜잭션 포함)
+        if (existing != null && !existing.isEmpty()) {
+            throw new BusinessException(ErrorCode.VISIT_ALREADY_EXISTS_FOR_RECEPTION); //중복이면 종료 (트랜잭션 롤백
+        }
+        //접수 상태 변경(외부 API)//
+        ReceptionStatusUpdateRequest statusReq = new ReceptionStatusUpdateRequest();
+        statusReq.setStatus("IN_PROGRESS");
+        statusReq.setChangedBy(request.getChangedBy());
+        statusReq.setReasonCode("VISIT_START");
+        statusReq.setReasonText("진료 시작");
+        receptionClient.updateReceptionStatus(receptionId, statusReq); //트랜잭션 아님./ 여기서 성공하면 롤백 불가.
+        //visit 생성//
+        Visit v = Visit.create(patientId, doctorId, receptionId);
+        v.start();
+                //아직 DB 저장 안됨.(객체만 생성)
+        //Visit 저장(DB)//
+        Visit saved = visitRepo.save(v);
+        visitStatusHistoryRepo.save(VisitStatusHistory.create(saved.getVisitId(), Visit.IN_PROGRESS));
+        return saved;
+    }
+        /* 부분 트랜잭션 상태(DB작업에 하나로 묶인다.)--> receptionClient.getReception(..)/updateReceptionStatus(..)
+                                           => 트랜잭션 밖(다른 서버 호출) */
     @Override
     @Transactional
     public Visit createVisit(VisitCreateRequest request) {
         Visit v = Visit.create(
                 request.getPatientId(),
                 request.getDoctorId(),
-                request.getReceptionId(),
-                request.getVisitStatus()
+                request.getReceptionId()
         );
-        if (request.getStartTime() != null) v.setStartTime(request.getStartTime());
+        String raw = request.getVisitStatus();
+        if (raw != null && !raw.isBlank()) {
+            String u = raw.trim().toUpperCase();
+            if (Visit.IN_PROGRESS.equals(u)) {
+                if (request.getStartTime() != null) {
+                    v.start(request.getStartTime());
+                } else {
+                    v.start();
+                }
+            } else if (Visit.COMPLETED.equals(u)) {
+                if (request.getStartTime() != null) {
+                    v.start(request.getStartTime());
+                } else {
+                    v.start();
+                }
+                v.complete();
+            } else if (!Visit.WAITING.equals(u)) {
+                throw new BusinessException(ErrorCode.INVALID_CLINICAL_STATUS);
+            }
+        } else if (request.getStartTime() != null) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "visitStatus가 없으면 startTime을 지정할 수 없습니다.");
+        }
         return visitRepo.save(v);
     }
 
@@ -48,7 +117,11 @@ public class EncounterServiceImpl implements EncounterService {
     @Transactional
     public Visit updateVisitStatus(Long visitId, String visitStatus) {
         Visit v = visitRepo.findById(visitId).orElseThrow(VisitNotFoundException::new);
-        v.setVisitStatus(visitStatus);
+        try {
+            v.applyAdministrativeVisitStatus(visitStatus);
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException(ErrorCode.INVALID_CLINICAL_STATUS);
+        }
         return visitRepo.save(v);
     }
 
@@ -56,8 +129,7 @@ public class EncounterServiceImpl implements EncounterService {
     @Transactional
     public Visit endVisit(Long visitId) {
         Visit v = visitRepo.findById(visitId).orElseThrow(VisitNotFoundException::new);
-        v.setEndTime(LocalDateTime.now());
-        v.setVisitStatus("COMPLETED");
+        v.complete();
         return visitRepo.save(v);
     }
 

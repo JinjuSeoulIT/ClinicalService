@@ -15,6 +15,7 @@ public interface OrderService {
     List<Order> listOrdersByVisitId(Long visitId);
     Order updateOrderStatus(Long visitId, Long orderId, String orderStatus);
     Order cancelOrder(Long visitId, Long orderId);
+    Order syncOrderStatusFromSupport(Long visitId, Long orderId, String orderStatus);
 
     OrderItem createOrderItem(Long orderId, OrderItemCreateRequest request);
     OrderItem getOrderItem(Long orderItemId);

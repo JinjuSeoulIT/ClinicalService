@@ -43,8 +43,11 @@ public class VisitQueue {
     public Long getQueueId() { return queueId; }
     public Long getVisitId() { return visitId; }
     public Integer getQueueOrder() { return queueOrder; }
-    public void setQueueOrder(Integer queueOrder) { this.queueOrder = queueOrder; }
     public Long getRoomId() { return roomId; }
-    public void setRoomId(Long roomId) { this.roomId = roomId; }
     public LocalDateTime getCreatedAt() { return createdAt; }
+
+    public void relocate(Integer queueOrder, Long roomId) {
+        this.queueOrder = queueOrder;
+        this.roomId = roomId;
+    }
 }

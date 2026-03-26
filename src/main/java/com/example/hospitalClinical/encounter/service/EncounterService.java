@@ -1,6 +1,7 @@
 package com.example.hospitalClinical.encounter.service;
 
 import com.example.hospitalClinical.encounter.dto.VisitCreateRequest;
+import com.example.hospitalClinical.encounter.dto.VisitStartRequest;
 import com.example.hospitalClinical.encounter.entity.Visit;
 import com.example.hospitalClinical.encounter.entity.VisitQueue;
 import com.example.hospitalClinical.encounter.entity.VisitStatusHistory;
@@ -8,6 +9,8 @@ import com.example.hospitalClinical.encounter.entity.VisitStatusHistory;
 import java.util.List;
 
 public interface EncounterService {
+
+    Visit startVisit(VisitStartRequest request);
 
     Visit createVisit(VisitCreateRequest request);
     Visit getVisit(Long visitId);

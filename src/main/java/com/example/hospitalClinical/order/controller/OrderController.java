@@ -3,6 +3,7 @@ package com.example.hospitalClinical.order.controller;
 import com.example.hospitalClinical.common.response.ApiResponse;
 import com.example.hospitalClinical.order.dto.OrderCreateRequest;
 import com.example.hospitalClinical.order.dto.OrderResponse;
+import com.example.hospitalClinical.order.entity.Order;
 import com.example.hospitalClinical.order.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -14,7 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@CrossOrigin(origins = {"http://localhost:3001", "http://127.0.0.1:3001", "http://localhost:5173"})
+@CrossOrigin(origins = {"http://localhost:3001", "http://127.0.0.1:3001", "http://localhost:5173", "http://192.168.1.64:3001"})
 @RestController
 @RequiredArgsConstructor
 @Slf4j
@@ -27,8 +28,13 @@ public class OrderController {
     public ResponseEntity<ApiResponse<OrderResponse>> create(
             @PathVariable("visitId") Long visitId,
             @RequestBody @Valid OrderCreateRequest request) {
-        log.info("[POST] /api/visits/{}/orders - 오더 등록", visitId);
-        OrderResponse result = OrderResponse.from(orderService.createOrder(visitId, request));
+        Order saved = orderService.createOrder(visitId, request);
+        OrderResponse result = OrderResponse.from(saved);
+        log.info(
+                "[POST] /api/visits/{}/orders - 오더 등록 완료 orderId={} itemCount={}",
+                visitId,
+                result.getOrderId(),
+                result.getItems() != null ? result.getItems().size() : 0);
         return ResponseEntity.status(201).body(new ApiResponse<>(true, "오더 등록 성공", result));
     }
 
@@ -55,10 +61,10 @@ public class OrderController {
             @PathVariable("visitId") Long visitId,
             @PathVariable("orderId") Long orderId,
             @RequestBody Map<String, String> body) {
-        log.info("[PATCH] /api/visits/{}/orders/{}/status - 오더 상태 변경", visitId, orderId);
+        log.info("[PATCH] /api/visits/{}/orders/{}/status - 오더 요청 취소(PATCH)", visitId, orderId);
         String status = body != null ? body.get("orderStatus") : null;
         OrderResponse result = OrderResponse.from(orderService.updateOrderStatus(visitId, orderId, status));
-        return ResponseEntity.ok(new ApiResponse<>(true, "오더 상태 변경 성공", result));
+        return ResponseEntity.ok(new ApiResponse<>(true, "오더 취소 성공", result));
     }
 
     @PostMapping("/{orderId}/cancel")

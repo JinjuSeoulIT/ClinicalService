@@ -6,6 +6,25 @@ spring:
   jpa:
     open-in-view: false
 
+reception:
+  api:
+    base-url: ${RECEPTION_API_BASE_URL:http://192.168.1.55:8283}
+
+clinical-support:
+  api:
+    base-url: ${CLINICAL_SUPPORT_API_BASE_URL:http://192.168.1.66:8181}
+    enabled: ${CLINICAL_SUPPORT_API_ENABLED:true}
+
+drug:
+  api:
+    base-url: http://apis.data.go.kr
+    service-key: "${DRUG_API_KEY}"
+
+disease:
+  api:
+    base-url: http://apis.data.go.kr
+    service-key: "${DRUG_API_KEY}"
+
 mybatis:
   configuration:
     map-underscore-to-camel-case: true
@@ -14,10 +33,13 @@ mybatis:
 ---
 spring:
   datasource:
-    url: jdbc:oracle:thin:@localhost:1521:xe
-    username: hospital
-    password: 1234
+    url: jdbc:oracle:thin:@192.168.1.67:1521:xe
+    username: ssh
+    password: 1111
     driver-class-name: oracle.jdbc.driver.OracleDriver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
 
   jpa:
     database-platform: org.hibernate.dialect.OracleDialect
@@ -57,7 +79,7 @@ server:
 spring:
   config:
     activate:
-      on-profile: prod        //프로필이 prod일 때만 이 블록 전체가 적용됨.
+      on-profile: prod
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}

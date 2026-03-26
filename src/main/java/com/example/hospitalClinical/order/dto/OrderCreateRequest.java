@@ -1,5 +1,6 @@
 package com.example.hospitalClinical.order.dto;
 
+import jakarta.validation.Valid;
 import lombok.Data;
 
 import java.util.List;
@@ -8,5 +9,7 @@ import java.util.List;
 public class OrderCreateRequest {
     private String orderType;
     private Long doctorId;
+
+    @Valid
     private List<OrderItemCreateRequest> items;
 }
