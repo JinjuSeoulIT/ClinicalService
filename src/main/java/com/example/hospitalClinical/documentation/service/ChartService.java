@@ -2,8 +2,10 @@ package com.example.hospitalClinical.documentation.service;
 
 import com.example.hospitalClinical.documentation.dto.DrugSearchResult;
 import com.example.hospitalClinical.documentation.dto.StandardDiagnosisItemDto;
-import com.example.hospitalClinical.documentation.dto.VisitSoapDiagnosisAddRequest;
-import com.example.hospitalClinical.documentation.dto.VisitSoapDiagnosisResponse;
+import com.example.hospitalClinical.documentation.dto.SoapDxRequest;
+import com.example.hospitalClinical.documentation.dto.SoapDxResponse;
+import com.example.hospitalClinical.documentation.dto.SoapRxRequest;
+import com.example.hospitalClinical.documentation.dto.SoapRxResponse;
 import com.example.hospitalClinical.documentation.entity.Diagnosis;
 import com.example.hospitalClinical.documentation.entity.Note;
 import com.example.hospitalClinical.documentation.entity.NoteAttachment;
@@ -47,15 +49,29 @@ public interface ChartService {
 
     DrugSearchResult searchDrugs(Integer pageNo, Integer numOfRows, String itemName);
 
-    List<VisitSoapDiagnosisResponse> listVisitSoapDiagnoses(Long visitId);
+    List<SoapDxResponse> listSoapDx(Long visitId);
 
-    VisitSoapDiagnosisResponse addVisitSoapDiagnosis(Long visitId, VisitSoapDiagnosisAddRequest request);
+    SoapDxResponse addSoapDx(Long visitId, SoapDxRequest request);
 
-    void removeVisitSoapDiagnosis(Long visitId, Long diagnosisId);
+    void removeSoapDx(Long visitId, Long diagnosisId);
 
-    VisitSoapDiagnosisResponse setMainVisitSoapDiagnosis(Long visitId, Long diagnosisId);
+    SoapDxResponse setMainSoapDx(Long visitId, Long diagnosisId);
 
-    void reorderVisitSoapDiagnoses(Long visitId, List<Long> diagnosisIds);
+    void reorderSoapDx(Long visitId, List<Long> diagnosisIds);
 
-    List<StandardDiagnosisItemDto> searchStandardDiagnosisMasters(String query, Integer pageNo, Integer numOfRows);
+    List<SoapRxResponse> listSoapRx(Long visitId);
+
+    SoapRxResponse addSoapRx(Long visitId, SoapRxRequest request);
+
+    void removeSoapRx(Long visitId, Long prescriptionId);
+
+    void updateSoapRx(
+            Long visitId,
+            Long prescriptionId,
+            String medicationName,
+            String dosage,
+            String days);
+
+    List<StandardDiagnosisItemDto> searchStandardDiagnosisMasters(
+            String query, Integer pageNo, Integer numOfRows, String diseaseType);
 }

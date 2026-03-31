@@ -1,10 +1,10 @@
 package com.example.hospitalClinical.order.controller;
 
+import com.example.hospitalClinical.common.exception.BusinessException;
 import com.example.hospitalClinical.common.response.ApiResponse;
 import com.example.hospitalClinical.order.dto.OrderCreateRequest;
 import com.example.hospitalClinical.order.dto.OrderResponse;
-import com.example.hospitalClinical.order.entity.Order;
-import com.example.hospitalClinical.order.service.OrderService;
+import com.example.hospitalClinical.order.service.OrderVisitService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,23 +13,29 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
-@CrossOrigin(origins = {"http://localhost:3001", "http://127.0.0.1:3001", "http://localhost:5173", "http://192.168.1.64:3001"})
+@CrossOrigin(origins = {
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+        "http://localhost:5173",
+        "http://192.168.1.64:3001",
+        "http://192.168.1.70:3001"
+})
 @RestController
 @RequiredArgsConstructor
 @Slf4j
 @RequestMapping("/api/visits/{visitId}/orders")
 public class OrderController {
 
-    private final OrderService orderService;
+    private final OrderVisitService orderVisitService;
 
     @PostMapping
     public ResponseEntity<ApiResponse<OrderResponse>> create(
             @PathVariable("visitId") Long visitId,
             @RequestBody @Valid OrderCreateRequest request) {
-        Order saved = orderService.createOrder(visitId, request);
-        OrderResponse result = OrderResponse.from(saved);
+        OrderResponse result = orderVisitService.createOrder(visitId, request);
         log.info(
                 "[POST] /api/visits/{}/orders - 오더 등록 완료 orderId={} itemCount={}",
                 visitId,
@@ -43,17 +49,21 @@ public class OrderController {
             @PathVariable("visitId") Long visitId,
             @PathVariable("orderId") Long orderId) {
         log.info("[GET] /api/visits/{}/orders/{} - 오더 조회", visitId, orderId);
-        OrderResponse result = OrderResponse.from(orderService.getOrder(orderId));
+        OrderResponse result = OrderResponse.from(orderVisitService.getOrder(orderId));
         return ResponseEntity.ok(new ApiResponse<>(true, "오더 조회 성공", result));
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<OrderResponse>>> list(@PathVariable("visitId") Long visitId) {
-        log.info("[GET] /api/visits/{}/orders - 오더 목록 조회", visitId);
-        List<OrderResponse> list = orderService.listOrdersByVisitId(visitId).stream()
-                .map(OrderResponse::from)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(new ApiResponse<>(true, "오더 목록 조회 성공", list));
+    public ResponseEntity<ApiResponse<List<OrderResponse>>> list(
+            @PathVariable("visitId") Long visitId,
+            @RequestParam(value = "orderType", required = false) String orderType) {
+        log.info("[GET] /api/visits/{}/orders orderType={}", visitId, orderType);
+        try {
+            List<OrderResponse> list = orderVisitService.listOrders(visitId, orderType);
+            return ResponseEntity.ok(new ApiResponse<>(true, "오더 목록 조회 성공", list));
+        } catch (BusinessException ex) {
+            return ResponseEntity.badRequest().body(new ApiResponse<>(false, ex.getMessage(), null));
+        }
     }
 
     @PatchMapping("/{orderId}/status")
@@ -63,7 +73,7 @@ public class OrderController {
             @RequestBody Map<String, String> body) {
         log.info("[PATCH] /api/visits/{}/orders/{}/status - 오더 요청 취소(PATCH)", visitId, orderId);
         String status = body != null ? body.get("orderStatus") : null;
-        OrderResponse result = OrderResponse.from(orderService.updateOrderStatus(visitId, orderId, status));
+        OrderResponse result = OrderResponse.from(orderVisitService.updateOrderStatus(visitId, orderId, status));
         return ResponseEntity.ok(new ApiResponse<>(true, "오더 취소 성공", result));
     }
 
@@ -72,7 +82,7 @@ public class OrderController {
             @PathVariable("visitId") Long visitId,
             @PathVariable("orderId") Long orderId) {
         log.info("[POST] /api/visits/{}/orders/{}/cancel - 오더 취소", visitId, orderId);
-        OrderResponse result = OrderResponse.from(orderService.cancelOrder(visitId, orderId));
+        OrderResponse result = OrderResponse.from(orderVisitService.cancelOrder(visitId, orderId));
         return ResponseEntity.ok(new ApiResponse<>(true, "오더 취소 성공", result));
     }
 }

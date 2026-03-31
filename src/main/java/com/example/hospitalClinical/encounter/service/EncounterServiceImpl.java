@@ -2,9 +2,13 @@ package com.example.hospitalClinical.encounter.service;
 
 import com.example.hospitalClinical.common.exception.BusinessException;
 import com.example.hospitalClinical.common.exception.ErrorCode;
+import com.example.hospitalClinical.common.client.external.billing.BillingApiClient;
+import com.example.hospitalClinical.common.client.external.billing.BillingClinicalCompletedRequest;
+import com.example.hospitalClinical.common.client.external.billing.BillingClinicalCompletedResult;
 import com.example.hospitalClinical.common.client.internal.reception.ReceptionClient;
 import com.example.hospitalClinical.common.client.internal.reception.ReceptionResponse;
 import com.example.hospitalClinical.common.client.internal.reception.ReceptionStatusUpdateRequest;
+import com.example.hospitalClinical.common.response.ApiResponse;
 import com.example.hospitalClinical.encounter.dto.VisitCreateRequest;
 import com.example.hospitalClinical.encounter.dto.VisitStartRequest;
 import com.example.hospitalClinical.encounter.entity.Visit;
@@ -33,6 +37,7 @@ public class EncounterServiceImpl implements EncounterService {
     private final VisitStatusHistoryRepo visitStatusHistoryRepo;
     private final VisitQueueRepo visitQueueRepo;
     private final ReceptionClient receptionClient;
+    private final BillingApiClient billingApiClient;
 
     @Override
     @Transactional
@@ -122,7 +127,11 @@ public class EncounterServiceImpl implements EncounterService {
         } catch (IllegalArgumentException e) {
             throw new BusinessException(ErrorCode.INVALID_CLINICAL_STATUS);
         }
-        return visitRepo.save(v);
+        Visit saved = visitRepo.save(v);
+        if (Visit.COMPLETED.equals(saved.getVisitStatus())) {
+            notifyBillingForCompletedVisit(saved);
+        }
+        return saved;
     }
 
     @Override
@@ -130,7 +139,9 @@ public class EncounterServiceImpl implements EncounterService {
     public Visit endVisit(Long visitId) {
         Visit v = visitRepo.findById(visitId).orElseThrow(VisitNotFoundException::new);
         v.complete();
-        return visitRepo.save(v);
+        Visit saved = visitRepo.save(v);
+        notifyBillingForCompletedVisit(saved);
+        return saved;
     }
 
     @Override
@@ -192,5 +203,28 @@ public class EncounterServiceImpl implements EncounterService {
     @Override
     public List<VisitQueue> listAllQueue() {
         return visitQueueRepo.findAllByOrderByQueueOrderAsc();
+    }
+
+    private void notifyBillingForCompletedVisit(Visit visit) {
+        BillingClinicalCompletedRequest request = BillingClinicalCompletedRequest.builder()
+                .eventId("clinical-completed-" + visit.getVisitId())
+                .visitId(visit.getVisitId())
+                .patientId(visit.getPatientId())
+                .status(Visit.COMPLETED)
+                .occurredAt(visit.getEndTime() != null ? visit.getEndTime() : visit.getUpdatedAt())
+                .build();
+        try {
+            ApiResponse<BillingClinicalCompletedResult> response = billingApiClient.notifyClinicalCompleted(request);
+            BillingClinicalCompletedResult result = response.getResult();
+            log.info(
+                    "[진료→수납] 완료 알림 전송 visitId={} success={} billId={} alreadyProcessed={}",
+                    visit.getVisitId(),
+                    response.isSuccess(),
+                    result != null ? result.getBillId() : null,
+                    result != null && result.isAlreadyProcessed()
+            );
+        } catch (Exception e) {
+            log.warn("[진료→수납] 완료 알림 전송 실패 visitId={} message={}", visit.getVisitId(), e.getMessage());
+        }
     }
 }

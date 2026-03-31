@@ -15,6 +15,8 @@ public class OrderItemResponse {
     private Long orderItemId;
     private Long orderId;
     private String itemCode;
+    private String itemName;
+    private String dosage;
     private BigDecimal dose;
     private String frequency;
     private String duration;
@@ -24,7 +26,12 @@ public class OrderItemResponse {
         return new OrderItemResponse(
                 i.getOrderItemId(),
                 i.getOrder() != null ? i.getOrder().getOrderId() : null,
-                i.getItemCode(), i.getDose(), i.getFrequency(), i.getDuration(),
+                i.getItemCode(),
+                i.getItemName(),
+                i.getItemDosage(),
+                i.getDose(),
+                i.getFrequency(),
+                i.getDuration(),
                 i.getCreatedAt()
         );
     }

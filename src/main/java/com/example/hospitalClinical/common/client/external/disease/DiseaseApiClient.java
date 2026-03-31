@@ -23,7 +23,7 @@ public class DiseaseApiClient {
         String key = properties.getServiceKey();
         if (base == null || base.isBlank() || key == null || key.isBlank() || "인증키".equals(key.trim())) {
             throw new IllegalStateException(
-                    "disease.api.service-key 가 비어 있습니다. application.yml 의 ${DRUG_API_KEY} 에 해당하는 환경변수를 설정하세요.");
+                    "disease.api.service-key 가 비어 있습니다. 환경변수 DISEASE_API_KEY 를 설정하세요.");
         }
         String root = base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
         UriComponentsBuilder b = UriComponentsBuilder
@@ -33,15 +33,18 @@ public class DiseaseApiClient {
                 .queryParam("pageNo", String.valueOf(pageNo))
                 .queryParam("sickType", "1")
                 .queryParam("medTp", "1")
-                .queryParam("diseaseType", diseaseType)
-                .queryParam("type", "json");
+                .queryParam("diseaseType", diseaseType);
         if (StringUtils.hasText(searchText)) {
             b.queryParam("searchText", searchText.trim());
         }
         URI uri = b.encode(StandardCharsets.UTF_8).build().toUri();
-        return restClient.get()
+        byte[] raw = restClient.get()
                 .uri(uri)
                 .retrieve()
-                .body(String.class);
+                .body(byte[].class);
+        if (raw == null || raw.length == 0) {
+            return "";
+        }
+        return new String(raw, StandardCharsets.UTF_8);
     }
 }

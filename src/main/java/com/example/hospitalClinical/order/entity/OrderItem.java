@@ -21,6 +21,12 @@ public class OrderItem {
     @Column(name = "ITEM_CODE", length = 50)
     private String itemCode;
 
+    @Column(name = "ITEM_NAME", length = 600)
+    private String itemName;
+
+    @Column(name = "ITEM_DOSAGE", length = 200)
+    private String itemDosage;
+
     @Column(name = "DOSE", precision = 10, scale = 2)
     private BigDecimal dose;
 
@@ -44,6 +50,16 @@ public class OrderItem {
         return i;
     }
 
+    public static OrderItem createPrescriptionLine(
+            String itemName, String itemDosage, String frequency, String duration) {
+        OrderItem i = new OrderItem();
+        i.itemName = itemName;
+        i.itemDosage = itemDosage;
+        i.frequency = frequency;
+        i.duration = duration;
+        return i;
+    }
+
     @PrePersist
     void prePersist() {
         if (createdAt == null) createdAt = LocalDateTime.now();
@@ -54,6 +70,8 @@ public class OrderItem {
     }
 
     public void setItemCode(String itemCode) { this.itemCode = itemCode; }
+    public void setItemName(String itemName) { this.itemName = itemName; }
+    public void setItemDosage(String itemDosage) { this.itemDosage = itemDosage; }
     public void setDose(BigDecimal dose) { this.dose = dose; }
     public void setFrequency(String frequency) { this.frequency = frequency; }
     public void setDuration(String duration) { this.duration = duration; }
@@ -61,6 +79,8 @@ public class OrderItem {
     public Long getOrderItemId() { return orderItemId; }
     public Order getOrder() { return order; }
     public String getItemCode() { return itemCode; }
+    public String getItemName() { return itemName; }
+    public String getItemDosage() { return itemDosage; }
     public BigDecimal getDose() { return dose; }
     public String getFrequency() { return frequency; }
     public String getDuration() { return duration; }

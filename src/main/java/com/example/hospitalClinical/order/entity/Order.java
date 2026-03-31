@@ -18,8 +18,9 @@ public class Order {
     @Column(name = "VISIT_ID", nullable = false)
     private Long visitId;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "ORDER_TYPE", length = 20)
-    private String orderType;
+    private OrderType orderType;
 
     @Column(name = "ORDER_STATUS", length = 20)
     private String orderStatus;
@@ -36,12 +37,15 @@ public class Order {
     @Column(name = "UPDATED_AT")
     private LocalDateTime updatedAt;
 
+    @Column(name = "LEGACY_PRESCRIPTION_ID")
+    private Long legacyPrescriptionId;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private final List<OrderItem> items = new ArrayList<>();
 
     protected Order() {}
 
-    public static Order create(Long visitId, String orderType, String orderStatus, Long doctorId) {
+    public static Order create(Long visitId, OrderType orderType, String orderStatus, Long doctorId) {
         Order o = new Order();
         o.visitId = visitId;
         o.orderType = orderType;
@@ -73,9 +77,17 @@ public class Order {
         this.orderStatus = orderStatus;
     }
 
+    public void setLegacyPrescriptionId(Long legacyPrescriptionId) {
+        this.legacyPrescriptionId = legacyPrescriptionId;
+    }
+
+    public Long getLegacyPrescriptionId() {
+        return legacyPrescriptionId;
+    }
+
     public Long getOrderId() { return orderId; }
     public Long getVisitId() { return visitId; }
-    public String getOrderType() { return orderType; }
+    public OrderType getOrderType() { return orderType; }
     public String getOrderStatus() { return orderStatus; }
     public Long getDoctorId() { return doctorId; }
     public LocalDateTime getOrderDate() { return orderDate; }

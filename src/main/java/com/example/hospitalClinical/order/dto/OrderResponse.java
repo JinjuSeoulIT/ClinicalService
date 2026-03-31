@@ -26,7 +26,10 @@ public class OrderResponse {
     public static OrderResponse from(Order o) {
         List<OrderItemResponse> itemList = o.getItems().stream().map(OrderItemResponse::from).collect(Collectors.toList());
         return new OrderResponse(
-                o.getOrderId(), o.getVisitId(), o.getOrderType(), o.getOrderStatus(),
+                o.getOrderId(),
+                o.getVisitId(),
+                o.getOrderType() != null ? o.getOrderType().name() : null,
+                o.getOrderStatus(),
                 o.getDoctorId(), o.getOrderDate(), o.getCreatedAt(), o.getUpdatedAt(), itemList
         );
     }

@@ -8,19 +8,24 @@ import com.example.hospitalClinical.common.exception.ErrorCode;
 import com.example.hospitalClinical.documentation.dto.DrugItemDto;
 import com.example.hospitalClinical.documentation.dto.DrugSearchResult;
 import com.example.hospitalClinical.documentation.dto.StandardDiagnosisItemDto;
-import com.example.hospitalClinical.documentation.dto.VisitSoapDiagnosisAddRequest;
-import com.example.hospitalClinical.documentation.dto.VisitSoapDiagnosisResponse;
+import com.example.hospitalClinical.documentation.DiagnosisDxSource;
+import com.example.hospitalClinical.documentation.dto.SoapDxRequest;
+import com.example.hospitalClinical.documentation.dto.SoapDxResponse;
+import com.example.hospitalClinical.documentation.dto.SoapRxRequest;
+import com.example.hospitalClinical.documentation.dto.SoapRxResponse;
 import com.example.hospitalClinical.documentation.entity.Diagnosis;
 import com.example.hospitalClinical.documentation.entity.Note;
 import com.example.hospitalClinical.documentation.entity.NoteAttachment;
 import com.example.hospitalClinical.documentation.entity.NoteHistory;
-import com.example.hospitalClinical.documentation.entity.VisitSoapDiagnosis;
+import com.example.hospitalClinical.documentation.entity.SoapDx;
+import com.example.hospitalClinical.documentation.entity.SoapRx;
 import com.example.hospitalClinical.documentation.exception.NoteNotFoundException;
 import com.example.hospitalClinical.documentation.repository.DiagnosisRepo;
 import com.example.hospitalClinical.documentation.repository.NoteAttachmentRepo;
 import com.example.hospitalClinical.documentation.repository.NoteHistoryRepo;
 import com.example.hospitalClinical.documentation.repository.NoteRepo;
-import com.example.hospitalClinical.documentation.repository.VisitSoapDiagnosisRepo;
+import com.example.hospitalClinical.documentation.repository.SoapDxRepo;
+import com.example.hospitalClinical.documentation.repository.SoapRxRepo;
 import com.example.hospitalClinical.encounter.repository.VisitRepo;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -46,7 +51,8 @@ public class ChartServiceImpl implements ChartService {
     private final NoteHistoryRepo noteHistoryRepo;
     private final NoteAttachmentRepo noteAttachmentRepo;
     private final VisitRepo visitRepo;
-    private final VisitSoapDiagnosisRepo visitSoapDiagnosisRepo;
+    private final SoapDxRepo soapDxRepo;
+    private final SoapRxRepo soapRxRepo;
     private final DrugApiClient drugApiClient;
     private final DiseaseApiClient diseaseApiClient;
     private final DiseaseDissNameCodeJsonParser diseaseDissNameCodeJsonParser;
@@ -174,72 +180,81 @@ public class ChartServiceImpl implements ChartService {
     }
 
     @Override
-    public List<VisitSoapDiagnosisResponse> listVisitSoapDiagnoses(Long visitId) {
+    public List<SoapDxResponse> listSoapDx(Long visitId) {
         assertVisit(visitId);
-        return visitSoapDiagnosisRepo.findByVisitIdOrderBySortOrderAscDiagnosisIdAsc(visitId).stream()
-                .map(VisitSoapDiagnosisResponse::from)
+        return soapDxRepo.findByVisitIdOrderBySortOrderAscDiagnosisIdAsc(visitId).stream()
+                .map(SoapDxResponse::from)
                 .collect(Collectors.toList());
     }
 
     @Override
     @Transactional
-    public VisitSoapDiagnosisResponse addVisitSoapDiagnosis(Long visitId, VisitSoapDiagnosisAddRequest request) {
+    public SoapDxResponse addSoapDx(Long visitId, SoapDxRequest request) {
         assertVisit(visitId);
         boolean asMain = Boolean.TRUE.equals(request != null ? request.getMain() : null);
         if (asMain) {
-            List<VisitSoapDiagnosis> existing = visitSoapDiagnosisRepo.findByVisitIdOrderBySortOrderAscDiagnosisIdAsc(visitId);
+            List<SoapDx> existing = soapDxRepo.findByVisitIdOrderBySortOrderAscDiagnosisIdAsc(visitId);
             boolean hasMain = existing.stream().anyMatch(d -> "Y".equals(d.getMainYn()));
             if (hasMain) {
                 throw new BusinessException(ErrorCode.INVALID_REQUEST, "이미 주상병이 있습니다.");
             }
         } else {
-            List<VisitSoapDiagnosis> existing = visitSoapDiagnosisRepo.findByVisitIdOrderBySortOrderAscDiagnosisIdAsc(visitId);
+            List<SoapDx> existing = soapDxRepo.findByVisitIdOrderBySortOrderAscDiagnosisIdAsc(visitId);
             if (existing.isEmpty()) {
                 throw new BusinessException(ErrorCode.INVALID_REQUEST, "먼저 주상병을 등록하세요.");
             }
         }
-        int nextOrder = visitSoapDiagnosisRepo.findByVisitIdOrderBySortOrderAscDiagnosisIdAsc(visitId).stream()
-                .mapToInt(VisitSoapDiagnosis::getSortOrder)
+        int nextOrder = soapDxRepo.findByVisitIdOrderBySortOrderAscDiagnosisIdAsc(visitId).stream()
+                .mapToInt(SoapDx::getSortOrder)
                 .max()
                 .orElse(-1) + 1;
         String code = request != null && request.getDxCode() != null ? request.getDxCode().trim() : null;
         String name = request != null && request.getDxName() != null ? request.getDxName().trim() : null;
-        if ((code == null || code.isEmpty()) && (name == null || name.isEmpty())) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "상병기호 또는 상병명이 필요합니다.");
+        DiagnosisDxSource dxSource = resolveDiagnosisDxSource(request != null ? request.getDxSource() : null);
+        if (dxSource == DiagnosisDxSource.PUBLIC_MASTER) {
+            if (code == null || code.isEmpty() || name == null || name.isEmpty()) {
+                throw new BusinessException(
+                        ErrorCode.INVALID_REQUEST, "표준 상병은 상병기호와 상병명을 함께 등록해야 합니다.");
+            }
+        } else {
+            if (code == null || code.isEmpty() || name == null || name.isEmpty()) {
+                throw new BusinessException(ErrorCode.INVALID_REQUEST, "보조 입력은 상병기호와 상병명을 모두 입력하세요.");
+            }
         }
         if (asMain) {
-            visitSoapDiagnosisRepo.findByVisitIdOrderBySortOrderAscDiagnosisIdAsc(visitId)
+            soapDxRepo.findByVisitIdOrderBySortOrderAscDiagnosisIdAsc(visitId)
                     .forEach(d -> d.setMainYn("N"));
         }
-        VisitSoapDiagnosis saved = visitSoapDiagnosisRepo.save(
-                VisitSoapDiagnosis.create(visitId, emptyToNull(code), emptyToNull(name), asMain, nextOrder));
-        return VisitSoapDiagnosisResponse.from(saved);
+        SoapDx saved = soapDxRepo.save(
+                SoapDx.create(
+                        visitId, emptyToNull(code), emptyToNull(name), asMain, nextOrder, dxSource));
+        return SoapDxResponse.from(saved);
     }
 
     @Override
     @Transactional
-    public void removeVisitSoapDiagnosis(Long visitId, Long diagnosisId) {
+    public void removeSoapDx(Long visitId, Long diagnosisId) {
         assertVisit(visitId);
-        VisitSoapDiagnosis d = visitSoapDiagnosisRepo.findByDiagnosisIdAndVisitId(diagnosisId, visitId)
+        SoapDx d = soapDxRepo.findByDiagnosisIdAndVisitId(diagnosisId, visitId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST, "상병을 찾을 수 없습니다."));
-        visitSoapDiagnosisRepo.delete(d);
+        soapDxRepo.delete(d);
     }
 
     @Override
     @Transactional
-    public VisitSoapDiagnosisResponse setMainVisitSoapDiagnosis(Long visitId, Long diagnosisId) {
+    public SoapDxResponse setMainSoapDx(Long visitId, Long diagnosisId) {
         assertVisit(visitId);
-        VisitSoapDiagnosis target = visitSoapDiagnosisRepo.findByDiagnosisIdAndVisitId(diagnosisId, visitId)
+        SoapDx target = soapDxRepo.findByDiagnosisIdAndVisitId(diagnosisId, visitId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST, "상병을 찾을 수 없습니다."));
-        visitSoapDiagnosisRepo.findByVisitIdOrderBySortOrderAscDiagnosisIdAsc(visitId)
+        soapDxRepo.findByVisitIdOrderBySortOrderAscDiagnosisIdAsc(visitId)
                 .forEach(d -> d.setMainYn("N"));
         target.setMainYn("Y");
-        return VisitSoapDiagnosisResponse.from(visitSoapDiagnosisRepo.save(target));
+        return SoapDxResponse.from(soapDxRepo.save(target));
     }
 
     @Override
     @Transactional
-    public void reorderVisitSoapDiagnoses(Long visitId, List<Long> diagnosisIds) {
+    public void reorderSoapDx(Long visitId, List<Long> diagnosisIds) {
         assertVisit(visitId);
         if (diagnosisIds == null || diagnosisIds.isEmpty()) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "순서 목록이 비었습니다.");
@@ -247,12 +262,12 @@ public class ChartServiceImpl implements ChartService {
         if (new HashSet<>(diagnosisIds).size() != diagnosisIds.size()) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "상병 ID가 중복되었습니다.");
         }
-        List<VisitSoapDiagnosis> rows = visitSoapDiagnosisRepo.findByVisitIdOrderBySortOrderAscDiagnosisIdAsc(visitId);
+        List<SoapDx> rows = soapDxRepo.findByVisitIdOrderBySortOrderAscDiagnosisIdAsc(visitId);
         if (rows.size() != diagnosisIds.size()) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "상병 개수가 일치하지 않습니다.");
         }
         var idSet = new HashSet<Long>();
-        for (VisitSoapDiagnosis r : rows) {
+        for (SoapDx r : rows) {
             idSet.add(r.getDiagnosisId());
         }
         for (Long id : diagnosisIds) {
@@ -262,7 +277,7 @@ public class ChartServiceImpl implements ChartService {
         }
         for (int i = 0; i < diagnosisIds.size(); i++) {
             Long id = diagnosisIds.get(i);
-            VisitSoapDiagnosis d = rows.stream()
+            SoapDx d = rows.stream()
                     .filter(x -> x.getDiagnosisId().equals(id))
                     .findFirst()
                     .orElseThrow();
@@ -271,16 +286,85 @@ public class ChartServiceImpl implements ChartService {
     }
 
     @Override
+    public List<SoapRxResponse> listSoapRx(Long visitId) {
+        assertVisit(visitId);
+        return soapRxRepo.findByVisitIdOrderByPrescriptionIdAsc(visitId).stream()
+                .map(SoapRxResponse::from)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public SoapRxResponse addSoapRx(Long visitId, SoapRxRequest request) {
+        assertVisit(visitId);
+        String name = request != null && request.getMedicationName() != null
+                ? request.getMedicationName().trim()
+                : "";
+        if (name.isEmpty()) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "약품명을 입력하세요.");
+        }
+        String dosage = trimToNull(request != null ? request.getDosage() : null);
+        String days = trimToNull(request != null ? request.getDays() : null);
+        SoapRx saved = soapRxRepo.save(SoapRx.create(visitId, name, dosage, days));
+        return SoapRxResponse.from(saved);
+    }
+
+    @Override
+    @Transactional
+    public void removeSoapRx(Long visitId, Long prescriptionId) {
+        assertVisit(visitId);
+        SoapRx p = soapRxRepo
+                .findByPrescriptionIdAndVisitId(prescriptionId, visitId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST, "처방을 찾을 수 없습니다."));
+        soapRxRepo.delete(p);
+    }
+
+    @Override
+    @Transactional
+    public void updateSoapRx(Long visitId, Long prescriptionId, String medicationName, String dosage, String days) {
+        assertVisit(visitId);
+        SoapRx p = soapRxRepo
+                .findByPrescriptionIdAndVisitId(prescriptionId, visitId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST, "처방을 찾을 수 없습니다."));
+        if (medicationName != null) {
+            String name = medicationName.trim();
+            if (name.isEmpty()) {
+                throw new BusinessException(ErrorCode.INVALID_REQUEST, "약품명을 입력하세요.");
+            }
+            p.setMedicationName(name);
+        }
+        if (dosage != null) {
+            p.setDosage(trimToNull(dosage));
+        }
+        if (days != null) {
+            p.setDays(trimToNull(days));
+        }
+        soapRxRepo.save(p);
+    }
+
+    @Override
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public List<StandardDiagnosisItemDto> searchStandardDiagnosisMasters(String query, Integer pageNo,
-                                                                         Integer numOfRows) {
+                                                                         Integer numOfRows, String diseaseType) {
         if (!StringUtils.hasText(query)) {
             return List.of();
         }
         int p = pageNo != null && pageNo > 0 ? pageNo : 1;
         int n = numOfRows != null && numOfRows > 0 ? Math.min(numOfRows, 100) : 20;
-        String json = diseaseApiClient.fetchDissNameCodeList(p, n, "SICK_NM", query.trim());
+        String dt = normalizeDiseaseType(diseaseType);
+        String json = diseaseApiClient.fetchDissNameCodeList(p, n, dt, query.trim());
         return diseaseDissNameCodeJsonParser.parseDissNameCodeList(json);
+    }
+
+    private static String normalizeDiseaseType(String diseaseType) {
+        if (!StringUtils.hasText(diseaseType)) {
+            return "SICK_NM";
+        }
+        String u = diseaseType.trim().toUpperCase();
+        if ("SICK_CD".equals(u) || "SICK_NM".equals(u)) {
+            return u;
+        }
+        return "SICK_NM";
     }
 
     private DrugSearchResult parseDrugSearchResult(String json, int requestedPage, int requestedNumOfRows) {
@@ -353,10 +437,28 @@ public class ChartServiceImpl implements ChartService {
         }
     }
 
+    private static DiagnosisDxSource resolveDiagnosisDxSource(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return DiagnosisDxSource.MANUAL;
+        }
+        if ("PUBLIC_MASTER".equalsIgnoreCase(raw.trim())) {
+            return DiagnosisDxSource.PUBLIC_MASTER;
+        }
+        return DiagnosisDxSource.MANUAL;
+    }
+
     private static String emptyToNull(String s) {
         if (s == null || s.isEmpty()) {
             return null;
         }
         return s;
+    }
+
+    private static String trimToNull(String s) {
+        if (s == null) {
+            return null;
+        }
+        String t = s.trim();
+        return t.isEmpty() ? null : t;
     }
 }

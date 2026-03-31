@@ -13,7 +13,12 @@ reception:
 clinical-support:
   api:
     base-url: ${CLINICAL_SUPPORT_API_BASE_URL:http://192.168.1.66:8181}
-    enabled: ${CLINICAL_SUPPORT_API_ENABLED:true} //진료지원 서비스랑 api 연동을 켠다.(활성)
+    enabled: ${CLINICAL_SUPPORT_API_ENABLED:true} 
+
+billing:
+  api:
+    base-url: ${BILLING_API_BASE_URL:http://192.168.1.68:8081}
+    enabled: ${BILLING_API_ENABLED:true}
 
 drug:
   api:
@@ -23,12 +28,17 @@ drug:
 disease:
   api:
     base-url: http://apis.data.go.kr
-    service-key: "${DRUG_API_KEY}"
+    service-key: "${DISEASE_API_KEY}"
 
 mybatis:
   configuration:
     map-underscore-to-camel-case: true
   mapper-locations: classpath:/mapper/**/*.xml
+
+app:
+  migration:
+    soap-rx-to-order:
+      enabled: ${SOAP_RX_TO_ORDER_MIGRATION:false}
 
 ---
 spring:
@@ -36,13 +46,12 @@ spring:
     url: jdbc:oracle:thin:@192.168.1.67:1521:xe
     username: ssh
     password: 1111
-    driver-class-name: oracle.jdbc.driver.OracleDriver
+    driver-class-name: oracle.jdbc.OracleDriver
     hikari:
       maximum-pool-size: 5
       minimum-idle: 1
 
   jpa:
-    database-platform: org.hibernate.dialect.OracleDialect
     hibernate:
       ddl-auto: none
     show-sql: true
@@ -64,7 +73,6 @@ spring:
     password: ${DEV_DB_PASSWORD}
     driver-class-name: oracle.jdbc.OracleDriver
   jpa:
-    database-platform: org.hibernate.dialect.OracleDialect
     hibernate:
       ddl-auto: update
     show-sql: false
@@ -86,7 +94,6 @@ spring:
     password: ${DB_PASSWORD}
     driver-class-name: oracle.jdbc.OracleDriver
   jpa:
-    database-platform: org.hibernate.dialect.OracleDialect
     hibernate:
       ddl-auto: none
     show-sql: false

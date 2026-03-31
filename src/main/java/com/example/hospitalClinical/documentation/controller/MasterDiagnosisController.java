@@ -31,9 +31,12 @@ public class MasterDiagnosisController {
     public ResponseEntity<ApiResponse<List<StandardDiagnosisItemDto>>> search(
             @RequestParam(value = "query", required = false) String query,
             @RequestParam(value = "pageNo", required = false) Integer pageNo,
-            @RequestParam(value = "numOfRows", required = false) Integer numOfRows) {
-        log.info("[GET] /api/master-diagnoses query={} pageNo={} numOfRows={}", query, pageNo, numOfRows);
-        List<StandardDiagnosisItemDto> list = chartService.searchStandardDiagnosisMasters(query, pageNo, numOfRows);
+            @RequestParam(value = "numOfRows", required = false) Integer numOfRows,
+            @RequestParam(value = "diseaseType", required = false) String diseaseType) {
+        log.info("[GET] /api/master-diagnoses query={} pageNo={} numOfRows={} diseaseType={}", query, pageNo,
+                numOfRows, diseaseType);
+        List<StandardDiagnosisItemDto> list =
+                chartService.searchStandardDiagnosisMasters(query, pageNo, numOfRows, diseaseType);
         return ResponseEntity.ok(ApiResponse.ok("표준 상병 검색 성공", list));
     }
 }
