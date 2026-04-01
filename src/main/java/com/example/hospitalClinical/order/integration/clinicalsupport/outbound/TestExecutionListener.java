@@ -107,11 +107,9 @@ public class TestExecutionListener {
         }
         return switch (orderType) {
             case IMAGING -> "IMAGING";
-            case PROCEDURE -> "PROCEDURE";
             case PATHOLOGY ->  "PATHOLOGY";
             case ENDOSCOPY ->  "ENDOSCOPY";
-            case PHYSIOLOGY ->  "PHYSIOLOGY";
-            case MEDICATION ->   "MEDICATION";
+            case PHYSIOLOGICAL ->  "PHYSIOLOGICAL";
             default -> "SPECIMEN";
         };
     }

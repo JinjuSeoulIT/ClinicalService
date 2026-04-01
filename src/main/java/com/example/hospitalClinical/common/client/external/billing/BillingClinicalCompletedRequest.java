@@ -4,6 +4,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Builder
@@ -13,4 +14,5 @@ public class BillingClinicalCompletedRequest {
     private Long patientId;
     private String status;
     private LocalDateTime occurredAt;
+    private List<BillingClinicalClaimItem> items;
 }

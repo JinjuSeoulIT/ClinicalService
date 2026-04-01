@@ -8,7 +8,7 @@ public enum OrderType {
     PATHOLOGY,
     SPECIMEN,
     ENDOSCOPY,
-    PHYSIOLOGY,
+    PHYSIOLOGICAL,
     MEDICATION;
 
     public boolean isPrescription() {
@@ -17,14 +17,14 @@ public enum OrderType {
 
     public boolean isLabCommittedType() {
         return switch (this) {
-            case BLOOD, IMAGING, PROCEDURE -> true;
+            case BLOOD, IMAGING, PATHOLOGY, ENDOSCOPY, PHYSIOLOGICAL, SPECIMEN-> true;
             default -> false;
         };
     }
 
     public boolean isTestCategory() {
         return switch (this) {
-            case BLOOD, IMAGING, PATHOLOGY, SPECIMEN, ENDOSCOPY, PHYSIOLOGY -> true;
+            case BLOOD, IMAGING, PATHOLOGY, SPECIMEN, ENDOSCOPY, PHYSIOLOGICAL -> true;
             default -> false;
         };
     }

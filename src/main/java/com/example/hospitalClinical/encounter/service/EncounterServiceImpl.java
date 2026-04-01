@@ -3,6 +3,7 @@ package com.example.hospitalClinical.encounter.service;
 import com.example.hospitalClinical.common.exception.BusinessException;
 import com.example.hospitalClinical.common.exception.ErrorCode;
 import com.example.hospitalClinical.common.client.external.billing.BillingApiClient;
+import com.example.hospitalClinical.common.client.external.billing.BillingClinicalClaimItem;
 import com.example.hospitalClinical.common.client.external.billing.BillingClinicalCompletedRequest;
 import com.example.hospitalClinical.common.client.external.billing.BillingClinicalCompletedResult;
 import com.example.hospitalClinical.common.client.internal.reception.ReceptionClient;
@@ -18,11 +19,15 @@ import com.example.hospitalClinical.encounter.exception.VisitNotFoundException;
 import com.example.hospitalClinical.encounter.repository.VisitQueueRepo;
 import com.example.hospitalClinical.encounter.repository.VisitRepo;
 import com.example.hospitalClinical.encounter.repository.VisitStatusHistoryRepo;
+import com.example.hospitalClinical.order.entity.Order;
+import com.example.hospitalClinical.order.entity.OrderItem;
+import com.example.hospitalClinical.order.service.OrderVisitService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -38,6 +43,7 @@ public class EncounterServiceImpl implements EncounterService {
     private final VisitQueueRepo visitQueueRepo;
     private final ReceptionClient receptionClient;
     private final BillingApiClient billingApiClient;
+    private final OrderVisitService orderVisitService;
 
     @Override
     @Transactional
@@ -206,25 +212,61 @@ public class EncounterServiceImpl implements EncounterService {
     }
 
     private void notifyBillingForCompletedVisit(Visit visit) {
+        List<BillingClinicalClaimItem> items = buildBillingClaimItems(visit.getVisitId());
+        if (items.isEmpty()) {
+            log.warn("[진료→수납] 청구 품목이 없어 claims 전송 생략 visitId={}", visit.getVisitId());
+            return;
+        }
         BillingClinicalCompletedRequest request = BillingClinicalCompletedRequest.builder()
                 .eventId("clinical-completed-" + visit.getVisitId())
                 .visitId(visit.getVisitId())
                 .patientId(visit.getPatientId())
                 .status(Visit.COMPLETED)
                 .occurredAt(visit.getEndTime() != null ? visit.getEndTime() : visit.getUpdatedAt())
+                .items(items)
                 .build();
         try {
             ApiResponse<BillingClinicalCompletedResult> response = billingApiClient.notifyClinicalCompleted(request);
             BillingClinicalCompletedResult result = response.getResult();
             log.info(
-                    "[진료→수납] 완료 알림 전송 visitId={} success={} billId={} alreadyProcessed={}",
+                    "[진료→수납] 완료 알림 전송 visitId={} success={} billId={} alreadyProcessed={} itemCount={}",
                     visit.getVisitId(),
                     response.isSuccess(),
                     result != null ? result.getBillId() : null,
-                    result != null && result.isAlreadyProcessed()
+                    result != null && result.isAlreadyProcessed(),
+                    items.size()
             );
         } catch (Exception e) {
             log.warn("[진료→수납] 완료 알림 전송 실패 visitId={} message={}", visit.getVisitId(), e.getMessage());
         }
+    }
+
+    private List<BillingClinicalClaimItem> buildBillingClaimItems(Long visitId) {
+        List<Order> orders = orderVisitService.listOrdersByVisitId(visitId);
+        List<BillingClinicalClaimItem> out = new ArrayList<>();
+        for (Order order : orders) {
+            if (order.getOrderStatus() != null && "CANCELLED".equalsIgnoreCase(order.getOrderStatus().trim())) {
+                continue;
+            }
+            String orderType =
+                    order.getOrderType() != null ? order.getOrderType().name() : "UNKNOWN";
+            for (OrderItem line : order.getItems()) {
+                Long sourceId = line.getOrderItemId();
+                if (sourceId == null) {
+                    continue;
+                }
+                String name = line.getItemName() != null ? line.getItemName() : "";
+                String code = line.getItemCode() != null ? line.getItemCode() : "";
+                out.add(
+                        BillingClinicalClaimItem.builder()
+                                .itemName(name)
+                                .itemCode(code)
+                                .orderType(orderType)
+                                .sourceId(sourceId)
+                                .sourceType(BillingClinicalClaimItem.SOURCE_TYPE_CLINICAL_ORDER_ITEM)
+                                .build());
+            }
+        }
+        return out;
     }
 }

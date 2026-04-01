@@ -24,7 +24,7 @@ public class ReceptionClient {
     private final String baseUrl;
 
     public ReceptionClient(RestTemplate restTemplate,
-                           @Value("${reception.api.base-url:http://192.168.1.55:8283}") String baseUrl) {
+                           @Value("${reception.api.base-url:http://192.168.1.70:8283}") String baseUrl) {
         this.restTemplate = restTemplate;
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
     }
