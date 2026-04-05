@@ -2,7 +2,6 @@ package com.example.hospitalClinical.order.entity;
 
 public enum OrderType {
     PRESCRIPTION,
-    BLOOD,
     IMAGING,
     PROCEDURE,
     PATHOLOGY,
@@ -17,14 +16,14 @@ public enum OrderType {
 
     public boolean isLabCommittedType() {
         return switch (this) {
-            case BLOOD, IMAGING, PATHOLOGY, ENDOSCOPY, PHYSIOLOGICAL, SPECIMEN-> true;
+            case IMAGING, PATHOLOGY, ENDOSCOPY, PHYSIOLOGICAL, SPECIMEN-> true;
             default -> false;
         };
     }
 
     public boolean isTestCategory() {
         return switch (this) {
-            case BLOOD, IMAGING, PATHOLOGY, SPECIMEN, ENDOSCOPY, PHYSIOLOGICAL -> true;
+            case IMAGING, PATHOLOGY, SPECIMEN, ENDOSCOPY, PHYSIOLOGICAL -> true;
             default -> false;
         };
     }

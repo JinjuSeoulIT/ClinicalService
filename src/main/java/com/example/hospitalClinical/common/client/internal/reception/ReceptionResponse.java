@@ -12,7 +12,7 @@ public class ReceptionResponse {
     private Long patientId;
     private String patientName;
     private String visitType;
-    private Long departmentId;
+    private String departmentId;
     private String departmentName;
     private Long doctorId;
     private String doctorName;
@@ -44,8 +44,8 @@ public class ReceptionResponse {
     public void setPatientName(String patientName) { this.patientName = patientName; }
     public String getVisitType() { return visitType; }
     public void setVisitType(String visitType) { this.visitType = visitType; }
-    public Long getDepartmentId() { return departmentId; }
-    public void setDepartmentId(Long departmentId) { this.departmentId = departmentId; }
+    public String getDepartmentId() { return departmentId; }
+    public void setDepartmentId(String departmentId) { this.departmentId = departmentId; }
     public String getDepartmentName() { return departmentName; }
     public void setDepartmentName(String departmentName) { this.departmentName = departmentName; }
     public Long getDoctorId() { return doctorId; }

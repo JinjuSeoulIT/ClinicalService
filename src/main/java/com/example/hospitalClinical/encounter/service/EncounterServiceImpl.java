@@ -146,6 +146,11 @@ public class EncounterServiceImpl implements EncounterService {
         Visit v = visitRepo.findById(visitId).orElseThrow(VisitNotFoundException::new);
         v.complete();
         Visit saved = visitRepo.save(v);
+        ReceptionStatusUpdateRequest endReq = new ReceptionStatusUpdateRequest();
+        endReq.setStatus("PAYMENT_WAIT");
+        endReq.setReasonCode("VISIT_END");
+        endReq.setReasonText("진료 완료 → 수납대기");
+        receptionClient.updateReceptionStatus(saved.getReceptionId(), endReq);
         notifyBillingForCompletedVisit(saved);
         return saved;
     }

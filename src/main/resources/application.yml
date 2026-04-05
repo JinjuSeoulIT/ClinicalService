@@ -20,6 +20,11 @@ billing:
     base-url: ${BILLING_API_BASE_URL:http://192.168.1.68:8081}
     enabled: ${BILLING_API_ENABLED:true}
 
+hira:
+  api:
+    base-url: ${HIRA_API_BASE_URL:http://apis.data.go.kr}
+    service-key: ${HIRA_API_KEY:}
+
 drug:
   api:
     base-url: http://apis.data.go.kr

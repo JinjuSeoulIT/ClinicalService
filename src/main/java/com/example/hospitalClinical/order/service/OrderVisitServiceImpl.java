@@ -451,11 +451,16 @@ public class OrderVisitServiceImpl implements OrderVisitService {
                     trimToNull(req.getFrequency()),
                     trimToNull(req.getDuration()));
         }
-        return OrderItem.create(
-                req.getItemCode().trim(),
-                req.getDose(),
-                trimToNull(req.getFrequency()),
-                trimToNull(req.getDuration()));
+        OrderItem item =
+                OrderItem.create(
+                        req.getItemCode().trim(),
+                        req.getDose(),
+                        trimToNull(req.getFrequency()),
+                        trimToNull(req.getDuration()));
+        if (req.getItemName() != null && !req.getItemName().isBlank()) {
+            item.setItemName(req.getItemName().trim());
+        }
+        return item;
     }
 
     private static String trimToNull(String s) {
