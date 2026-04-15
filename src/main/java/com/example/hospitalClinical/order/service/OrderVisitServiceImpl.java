@@ -1,33 +1,51 @@
 package com.example.hospitalClinical.order.service;
 
+import com.example.hospitalClinical.common.client.external.clinicalsupport.MedicationRecordOutboundRequest;
+import com.example.hospitalClinical.common.client.external.clinicalsupport.NursingSupportOrderApiClient;
+import com.example.hospitalClinical.common.client.external.clinicalsupport.TreatmentResultOutboundRequest;
+import com.example.hospitalClinical.common.client.internal.reception.ReceptionClient;
+import com.example.hospitalClinical.common.client.internal.reception.ReceptionResponse;
 import com.example.hospitalClinical.common.exception.BusinessException;
 import com.example.hospitalClinical.common.exception.ErrorCode;
 import com.example.hospitalClinical.documentation.entity.SoapRx;
 import com.example.hospitalClinical.documentation.repository.SoapRxRepo;
-import com.example.hospitalClinical.documentation.service.ChartService;
+import com.example.hospitalClinical.documentation.service.DocumentationService;
+import com.example.hospitalClinical.encounter.entity.Visit;
 import com.example.hospitalClinical.encounter.exception.VisitNotFoundException;
 import com.example.hospitalClinical.encounter.repository.VisitRepo;
+import com.example.hospitalClinical.order.dto.MedicationRecordCreateRequest;
+import com.example.hospitalClinical.order.dto.MedicationRecordResponse;
 import com.example.hospitalClinical.order.dto.OrderCreateRequest;
 import com.example.hospitalClinical.order.dto.OrderItemCreateRequest;
 import com.example.hospitalClinical.order.dto.OrderItemResponse;
 import com.example.hospitalClinical.order.dto.OrderResponse;
+import com.example.hospitalClinical.order.dto.TreatmentResultCreateRequest;
+import com.example.hospitalClinical.order.dto.TreatmentResultResponse;
+import com.example.hospitalClinical.order.entity.MedicationRecord;
 import com.example.hospitalClinical.order.entity.Order;
 import com.example.hospitalClinical.order.entity.OrderItem;
 import com.example.hospitalClinical.order.entity.OrderResult;
 import com.example.hospitalClinical.order.entity.OrderType;
+import com.example.hospitalClinical.order.entity.TreatmentResult;
 import com.example.hospitalClinical.order.event.LabOrderCommittedEvent;
 import com.example.hospitalClinical.order.exception.OrderNotFoundException;
+import com.example.hospitalClinical.order.repository.MedicationRecordRepo;
 import com.example.hospitalClinical.order.repository.OrderItemRepo;
 import com.example.hospitalClinical.order.repository.OrderRepo;
 import com.example.hospitalClinical.order.repository.OrderResultRepo;
+import com.example.hospitalClinical.order.repository.TreatmentResultRepo;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -35,21 +53,26 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-@Service
-@RequiredArgsConstructor
-@Transactional(readOnly = true)
+@Service    //스프링 서비스 계층(비즈니스 로직 담당)
+@RequiredArgsConstructor    //final 필드 자동 생성자 주입(DI)
+@Slf4j
+@Transactional(readOnly = true) //기본은 조회 전용(성능 최적화)
 public class OrderVisitServiceImpl implements OrderVisitService {
-
-    private final OrderRepo orderRepo;
-    private final OrderItemRepo orderItemRepo;
-    private final OrderResultRepo orderResultRepo;
-    private final VisitRepo visitRepo;
-    private final ApplicationEventPublisher eventPublisher;
-    private final SoapRxRepo soapRxRepo;
-    private final ChartService chartService;
+            //final-> 값 변경 불가
+    private final OrderRepo orderRepo;  //Order 엔터티 DB 접근.(오더 생성/조회/삭제)
+    private final OrderItemRepo orderItemRepo;  //OrderItem DB접근.
+    private final OrderResultRepo orderResultRepo;  //검사결과 DB 접근.(결과값 저장/조회)
+    private final VisitRepo visitRepo;  //visit 존재 여부 검증.(visitId 유효한지 체크)
+    private final ApplicationEventPublisher eventPublisher; // 이벤트 발행:검사 오더 요청-->진료 서비스에게 전달
+    private final SoapRxRepo soapRxRepo;    // 기존 SOAP 처방 데이터 조회.(레거시)
+    private final DocumentationService documentationService;
+    private final ReceptionClient receptionClient;
+    private final MedicationRecordRepo medicationRecordRepo;
+    private final TreatmentResultRepo treatmentResultRepo;
+    private final NursingSupportOrderApiClient nursingSupportOrderApiClient;
 
     private static final Set<String> SUPPORT_ALLOWED_ORDER_STATUS =
-            Set.of("REQUESTED", "IN_PROGRESS", "COMPLETED", "CANCELLED");
+            Set.of("REQUESTED", "IN_PROGRESS", "COMPLETED", "CANCELLED");   //
 
     @Override
     public List<OrderResponse> listOrders(Long visitId, String orderTypeFilterOrNull) {
@@ -126,7 +149,7 @@ public class OrderVisitServiceImpl implements OrderVisitService {
             Long visitId, Long orderId, Long orderItemId, OrderItemCreateRequest body) {
         if (isLegacySoapKey(orderId, orderItemId)) {
             long legacyId = -orderId;
-            chartService.updateSoapRx(
+            documentationService.updateSoapRx(
                     visitId,
                     legacyId,
                     body != null ? body.getItemName() : null,
@@ -151,7 +174,7 @@ public class OrderVisitServiceImpl implements OrderVisitService {
     @Transactional
     public void deleteOrderItemLine(Long visitId, Long orderId, Long orderItemId) {
         if (isLegacySoapKey(orderId, orderItemId)) {
-            chartService.removeSoapRx(visitId, -orderId);
+            documentationService.removeSoapRx(visitId, -orderId);
             return;
         }
         Order o = getOrder(orderId);
@@ -223,7 +246,13 @@ public class OrderVisitServiceImpl implements OrderVisitService {
     public OrderItem createOrderItem(Long orderId, OrderItemCreateRequest request) {
         Order order = orderRepo.findById(orderId).orElseThrow(() -> new OrderNotFoundException());
         validateOrderItems(order.getOrderType(), List.of(request));
-        OrderItem item = toOrderItem(order.getOrderType(), request);
+        Visit visit = visitRepo.findById(order.getVisitId()).orElseThrow(VisitNotFoundException::new);
+        NamePair np = resolvePatientAndDepartment(order.getVisitId(), visit.getReceptionId(), null, null);
+        if (visit.getPatientId() == null) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        }
+        OrderItem item =
+                toOrderItem(order.getOrderType(), request, visit.getPatientId(), np.patientName(), np.departmentName());
         order.addItem(item);
         orderRepo.save(order);
         if (order.getOrderType() != null
@@ -252,22 +281,12 @@ public class OrderVisitServiceImpl implements OrderVisitService {
     public OrderItem updateOrderItem(Long orderItemId, OrderItemCreateRequest request) {
         OrderItem item = getOrderItem(orderItemId);
         if (request.getItemCode() != null) {
-            item.setItemCode(request.getItemCode());
+            item.setItemCode(trimToNull(request.getItemCode()));
         }
-        if (request.getItemName() != null) {
-            item.setItemName(request.getItemName().trim());
-        }
-        if (request.getDosage() != null) {
-            item.setItemDosage(trimToNull(request.getDosage()));
-        }
-        if (request.getDose() != null) {
-            item.setDose(request.getDose());
-        }
-        if (request.getFrequency() != null) {
-            item.setFrequency(trimToNull(request.getFrequency()));
-        }
-        if (request.getDuration() != null) {
-            item.setDuration(trimToNull(request.getDuration()));
+        if (request.getItemDetailCode() != null) {
+            item.setItemDetailCode(request.getItemDetailCode().trim());
+        } else if (request.getItemName() != null) {
+            item.setItemDetailCode(request.getItemName().trim());
         }
         return orderItemRepo.save(item);
     }
@@ -347,9 +366,167 @@ public class OrderVisitServiceImpl implements OrderVisitService {
         return orderResultRepo.save(r);
     }
 
+    @Override
+    @Transactional
+    public MedicationRecordResponse createMedicationRecord(Long visitId, MedicationRecordCreateRequest request) {
+        Visit visit = visitRepo.findById(visitId).orElseThrow(VisitNotFoundException::new);
+        String medicationId = newMedicationRecordId();
+        NamePair names =
+                resolvePatientAndDepartment(
+                        visitId,
+                        visit.getReceptionId(),
+                        request.getPatientName(),
+                        request.getDepartmentName());
+        String patientName = names.patientName();
+        String departmentName = names.departmentName();
+        BigDecimal doseNumber = BigDecimal.valueOf(request.getDoseNumber());
+        MedicationRecord entity = MedicationRecord.create(
+                medicationId,
+                visit.getPatientId(),
+                patientName,
+                departmentName,
+                doseNumber,
+                request.getDoseUnit() != null ? request.getDoseUnit().trim() : null,
+                trimToNull(request.getDoseKind()),
+                request.getStatus());
+        medicationRecordRepo.save(entity);
+        try {
+            MedicationRecordOutboundRequest outbound = MedicationRecordOutboundRequest.builder()
+                    .medicationId(entity.getMedicationId())
+                    .patientId(entity.getPatientId())
+                    .patientName(entity.getPatientName())
+                    .departmentName(entity.getDepartmentName())
+                    .doseNumber(request.getDoseNumber())
+                    .doseUnit(entity.getDoseUnit())
+                    .doseKind(entity.getDoseKind())
+                    .progressStatus(entity.getStatus())
+                    .build();
+            nursingSupportOrderApiClient.postMedicationRecord(outbound);
+        } catch (Exception e) {
+            log.warn("진료지원 투약 연동 실패 medicationId={}", medicationId, e);
+        }
+        return MedicationRecordResponse.from(entity);
+    }
+
+    @Override
+    @Transactional
+    public TreatmentResultResponse createTreatmentResult(Long visitId, TreatmentResultCreateRequest request) {
+        Visit visit = visitRepo.findById(visitId).orElseThrow(VisitNotFoundException::new);
+        String procedureResultId = newTreatmentResultId();
+        NamePair names =
+                resolvePatientAndDepartment(
+                        visitId,
+                        visit.getReceptionId(),
+                        request.getPatientName(),
+                        request.getDepartmentName());
+        String patientName = names.patientName();
+        String departmentName = names.departmentName();
+        String detail = trimToNull(request.getDetail());
+        if (detail == null) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        }
+        TreatmentResult entity = TreatmentResult.create(
+                procedureResultId,
+                visit.getPatientId(),
+                patientName,
+                departmentName,
+                request.getStatus(),
+                detail);
+        treatmentResultRepo.save(entity);
+        try {
+            TreatmentResultOutboundRequest outbound = TreatmentResultOutboundRequest.builder()
+                    .procedureResultId(entity.getProcedureResultId())
+                    .patientId(entity.getPatientId())
+                    .patientName(entity.getPatientName())
+                    .departmentName(entity.getDepartmentName())
+                    .progressStatus(entity.getStatus())
+                    .detail(entity.getDetail())
+                    .build();
+            nursingSupportOrderApiClient.postTreatmentResult(outbound);
+        } catch (Exception e) {
+            log.warn("진료지원 처치 연동 실패 procedureResultId={}", procedureResultId, e);
+        }
+        return TreatmentResultResponse.from(entity);
+    }
+
+    @Override
+    public List<MedicationRecordResponse> listMedicationRecordsByVisit(Long visitId) {
+        Visit visit = visitRepo.findById(visitId).orElseThrow(VisitNotFoundException::new);
+        return medicationRecordRepo.findByPatientIdOrderByCreatedAtDesc(visit.getPatientId()).stream()
+                .map(MedicationRecordResponse::from)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<TreatmentResultResponse> listTreatmentResultsByVisit(Long visitId) {
+        Visit visit = visitRepo.findById(visitId).orElseThrow(VisitNotFoundException::new);
+        return treatmentResultRepo.findByPatientIdOrderByCreatedAtDesc(visit.getPatientId()).stream()
+                .map(TreatmentResultResponse::from)
+                .collect(Collectors.toList());
+    }
+
+    private String newMedicationRecordId() {
+        String prefix = "MED" + LocalDate.now(ZoneId.systemDefault()).format(DateTimeFormatter.BASIC_ISO_DATE) + "-";
+        return medicationRecordRepo
+                .findLatestByMedicationIdPrefix(prefix)
+                .map(MedicationRecord::getMedicationId)
+                .map(OrderVisitServiceImpl::bumpDailySequenceSuffix)
+                .orElse(prefix + "0001");
+    }
+
+    private String newTreatmentResultId() {
+        String prefix = "TR" + LocalDate.now(ZoneId.systemDefault()).format(DateTimeFormatter.BASIC_ISO_DATE) + "-";
+        return treatmentResultRepo
+                .findLatestByProcedureResultIdPrefix(prefix)
+                .map(TreatmentResult::getProcedureResultId)
+                .map(OrderVisitServiceImpl::bumpDailySequenceSuffix)
+                .orElse(prefix + "0001");
+    }
+
+    private static String bumpDailySequenceSuffix(String fullId) {
+        int dash = fullId.lastIndexOf('-');
+        if (dash < 0 || dash >= fullId.length() - 1) {
+            throw new IllegalStateException("invalid id: " + fullId);
+        }
+        int n = Integer.parseInt(fullId.substring(dash + 1), 10);
+        if (n >= 9999) {
+            throw new IllegalStateException("daily id overflow: " + fullId);
+        }
+        return fullId.substring(0, dash + 1) + String.format("%04d", n + 1);
+    }
+
+    private NamePair resolvePatientAndDepartment(
+            Long visitId,
+            Long receptionId,
+            String requestPatientName,
+            String requestDepartmentName) {
+        String patientName = trimToNull(requestPatientName);
+        String departmentName = trimToNull(requestDepartmentName);
+        if (patientName != null && departmentName != null) {
+            return new NamePair(patientName, departmentName);
+        }
+        try {
+            ReceptionResponse r = receptionClient.getReception(receptionId);
+            if (patientName == null) {
+                patientName = trimToNull(r.getPatientName());
+            }
+            if (departmentName == null) {
+                departmentName = trimToNull(r.getDepartmentName());
+            }
+        } catch (Exception e) {
+            log.warn("접수 조회 실패 visitId={} receptionId={}", visitId, receptionId, e);
+        }
+        return new NamePair(patientName, departmentName);
+    }
+
+    private record NamePair(String patientName, String departmentName) {}
+
     private Order persistNewOrder(Long visitId, OrderCreateRequest request) {
-        if (!visitRepo.existsById(visitId)) {
-            throw new VisitNotFoundException();
+        Visit visit = visitRepo.findById(visitId).orElseThrow(VisitNotFoundException::new);
+        NamePair np = resolvePatientAndDepartment(visitId, visit.getReceptionId(), null, null);
+        Long patientId = visit.getPatientId();
+        if (patientId == null) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
         }
         OrderType orderType;
         try {
@@ -371,7 +548,7 @@ public class OrderVisitServiceImpl implements OrderVisitService {
         }
         Order o = Order.create(visitId, orderType, "REQUESTED", request.getDoctorId());
         for (OrderItemCreateRequest req : items) {
-            o.addItem(toOrderItem(orderType, req));
+            o.addItem(toOrderItem(orderType, req, patientId, np.patientName(), np.departmentName()));
         }
         Order saved = orderRepo.save(o);
         publishLabOrderCommittedIfNeeded(saved);
@@ -431,6 +608,12 @@ public class OrderVisitServiceImpl implements OrderVisitService {
                     throw new BusinessException(ErrorCode.INVALID_REQUEST);
                 }
             }
+        } else if (orderType.isTestCategory()) {
+            for (OrderItemCreateRequest req : items) {
+                if (trimToNull(req.getItemDetailCode()) == null && trimToNull(req.getItemCode()) == null) {
+                    throw new BusinessException(ErrorCode.INVALID_REQUEST);
+                }
+            }
         } else {
             for (OrderItemCreateRequest req : items) {
                 if (req.getItemCode() == null || req.getItemCode().isBlank()) {
@@ -440,27 +623,46 @@ public class OrderVisitServiceImpl implements OrderVisitService {
         }
     }
 
-    private static OrderItem toOrderItem(OrderType orderType, OrderItemCreateRequest req) {
+    private static OrderItem toOrderItem(
+            OrderType orderType,
+            OrderItemCreateRequest req,
+            Long patientId,
+            String patientName,
+            String departmentName) {
         if (orderType == null) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        }
+        if (patientId == null) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST);
         }
         if (orderType.isPrescription()) {
             return OrderItem.createPrescriptionLine(
-                    req.getItemName().trim(),
-                    trimToNull(req.getDosage()),
-                    trimToNull(req.getFrequency()),
-                    trimToNull(req.getDuration()));
+                    req.getItemName().trim(), patientId, patientName, departmentName);
         }
-        OrderItem item =
-                OrderItem.create(
-                        req.getItemCode().trim(),
-                        req.getDose(),
-                        trimToNull(req.getFrequency()),
-                        trimToNull(req.getDuration()));
-        if (req.getItemName() != null && !req.getItemName().isBlank()) {
-            item.setItemName(req.getItemName().trim());
+        if (orderType.isTestCategory()) {
+            String groupCode = labGroupCodeForOrderType(orderType);
+            String detail = trimToNull(req.getItemDetailCode());
+            if (detail == null) {
+                detail = trimToNull(req.getItemCode());
+            }
+            if (detail == null) {
+                throw new BusinessException(ErrorCode.INVALID_REQUEST);
+            }
+            return OrderItem.createLabLine(groupCode, detail, patientId, patientName, departmentName);
         }
-        return item;
+        String code = req.getItemCode().trim();
+        String detail = trimToNull(req.getItemDetailCode());
+        if (detail == null) {
+            detail = code;
+        }
+        return OrderItem.createLabLine(code, detail, patientId, patientName, departmentName);
+    }
+
+    private static String labGroupCodeForOrderType(OrderType orderType) {
+        if (orderType == null) {
+            return null;
+        }
+        return orderType.name();
     }
 
     private static String trimToNull(String s) {
@@ -500,16 +702,7 @@ public class OrderVisitServiceImpl implements OrderVisitService {
 
     private static OrderResponse legacySoapOrderResponse(SoapRx rx) {
         long sid = -rx.getPrescriptionId();
-        OrderItemResponse item = new OrderItemResponse(
-                sid,
-                sid,
-                null,
-                rx.getMedicationName(),
-                rx.getDosage(),
-                null,
-                null,
-                rx.getDays(),
-                rx.getCreatedAt());
+        OrderItemResponse item = legacySoapItemResponse(rx);
         return new OrderResponse(
                 sid,
                 rx.getVisitId(),
@@ -524,15 +717,18 @@ public class OrderVisitServiceImpl implements OrderVisitService {
 
     private static OrderItemResponse legacySoapItemResponse(SoapRx rx) {
         long sid = -rx.getPrescriptionId();
-        return new OrderItemResponse(
-                sid,
-                sid,
-                null,
-                rx.getMedicationName(),
-                rx.getDosage(),
-                null,
-                null,
-                rx.getDays(),
-                rx.getCreatedAt());
+        OrderItemResponse r = new OrderItemResponse();
+        r.setOrderItemId(sid);
+        r.setOrderId(sid);
+        r.setItemCode(null);
+        String nm = rx.getMedicationName();
+        r.setItemDetailCode(nm);
+        r.setItemName(nm);
+        r.setDosage(null);
+        r.setDose(null);
+        r.setFrequency(null);
+        r.setDuration(null);
+        r.setCreatedAt(rx.getCreatedAt());
+        return r;
     }
 }

@@ -4,7 +4,7 @@ import com.example.hospitalClinical.common.response.ApiResponse;
 import com.example.hospitalClinical.documentation.dto.SoapDxOrderRequest;
 import com.example.hospitalClinical.documentation.dto.SoapDxRequest;
 import com.example.hospitalClinical.documentation.dto.SoapDxResponse;
-import com.example.hospitalClinical.documentation.service.ChartService;
+import com.example.hospitalClinical.documentation.service.DocumentationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -26,12 +26,12 @@ import java.util.List;
 @Slf4j
 public class SoapDxController {
 
-    private final ChartService chartService;
+    private final DocumentationService documentationService;
 
     @GetMapping({"/api/visits/{visitId}/diagnoses", "/api/clinicals/{visitId}/diagnoses"})
     public ResponseEntity<ApiResponse<List<SoapDxResponse>>> list(@PathVariable("visitId") Long visitId) {
         log.info("[GET] diagnoses visitId={}", visitId);
-        List<SoapDxResponse> list = chartService.listSoapDx(visitId);
+        List<SoapDxResponse> list = documentationService.listSoapDx(visitId);
         return ResponseEntity.ok(new ApiResponse<>(true, "상병 목록 조회 성공", list));
     }
 
@@ -40,7 +40,7 @@ public class SoapDxController {
             @PathVariable("visitId") Long visitId,
             @RequestBody SoapDxRequest body) {
         log.info("[POST] diagnoses visitId={}", visitId);
-        SoapDxResponse result = chartService.addSoapDx(visitId, body);
+        SoapDxResponse result = documentationService.addSoapDx(visitId, body);
         return ResponseEntity.status(201).body(new ApiResponse<>(true, "상병 등록 성공", result));
     }
 
@@ -49,7 +49,7 @@ public class SoapDxController {
             @PathVariable("visitId") Long visitId,
             @PathVariable("diagnosisId") Long diagnosisId) {
         log.info("[DELETE] diagnoses visitId={} diagnosisId={}", visitId, diagnosisId);
-        chartService.removeSoapDx(visitId, diagnosisId);
+        documentationService.removeSoapDx(visitId, diagnosisId);
         return ResponseEntity.ok(new ApiResponse<>(true, "상병 삭제 성공", null));
     }
 
@@ -58,7 +58,7 @@ public class SoapDxController {
             @PathVariable("visitId") Long visitId,
             @PathVariable("diagnosisId") Long diagnosisId) {
         log.info("[PATCH] diagnoses main visitId={} diagnosisId={}", visitId, diagnosisId);
-        SoapDxResponse result = chartService.setMainSoapDx(visitId, diagnosisId);
+        SoapDxResponse result = documentationService.setMainSoapDx(visitId, diagnosisId);
         return ResponseEntity.ok(new ApiResponse<>(true, "주진단 변경 성공", result));
     }
 
@@ -67,7 +67,7 @@ public class SoapDxController {
             @PathVariable("visitId") Long visitId,
             @RequestBody SoapDxOrderRequest body) {
         log.info("[PUT] diagnoses order visitId={}", visitId);
-        chartService.reorderSoapDx(visitId, body.getDiagnosisIds());
+        documentationService.reorderSoapDx(visitId, body.getDiagnosisIds());
         return ResponseEntity.ok(new ApiResponse<>(true, "상병 순서 변경 성공", null));
     }
 }

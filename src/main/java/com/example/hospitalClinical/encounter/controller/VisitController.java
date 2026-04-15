@@ -3,8 +3,7 @@ package com.example.hospitalClinical.encounter.controller;
 import com.example.hospitalClinical.common.response.ApiResponse;
 import com.example.hospitalClinical.documentation.dto.DrugSearchResult;
 import com.example.hospitalClinical.documentation.dto.HiraProcedureSearchResult;
-import com.example.hospitalClinical.documentation.service.ChartService;
-import com.example.hospitalClinical.documentation.service.HiraProcedureSearchService;
+import com.example.hospitalClinical.documentation.service.DocumentationService;
 import com.example.hospitalClinical.encounter.dto.VisitResponse;
 import com.example.hospitalClinical.encounter.service.EncounterService;
 import lombok.RequiredArgsConstructor;
@@ -30,8 +29,7 @@ import java.util.Map;
 public class VisitController {
 
     private final EncounterService encounterService;
-    private final ChartService chartService;
-    private final HiraProcedureSearchService hiraProcedureSearchService;
+    private final DocumentationService documentationService;
 
     @GetMapping("/{visitId}")
     public ResponseEntity<ApiResponse<VisitResponse>> get(@PathVariable("visitId") Long visitId) {
@@ -61,11 +59,12 @@ public class VisitController {
     public ResponseEntity<ApiResponse<DrugSearchResult>> drugSearch(
             @PathVariable("visitId") Long visitId,
             @RequestParam(value = "itemName", required = false) String itemName,
+            @RequestParam(value = "itemSeq", required = false) String itemSeq,
             @RequestParam(value = "pageNo", required = false) Integer pageNo,
             @RequestParam(value = "numOfRows", required = false) Integer numOfRows) {
         log.info("[GET] /api/visits/{}/drug-search - 진료 맥락 약품 검색", visitId);
         encounterService.getVisit(visitId);
-        DrugSearchResult result = chartService.searchDrugs(pageNo, numOfRows, itemName);
+        DrugSearchResult result = documentationService.searchDrugs(pageNo, numOfRows, itemName, itemSeq);
         return ResponseEntity.ok(new ApiResponse<>(true, "약품 검색 성공", result));
     }
 
@@ -92,7 +91,7 @@ public class VisitController {
             return ResponseEntity.ok(new ApiResponse<>(true, "검색어 2자 이상 필요", empty));
         }
         try {
-            HiraProcedureSearchResult result = hiraProcedureSearchService.searchProcedures(p, n, query);
+            HiraProcedureSearchResult result = documentationService.searchProcedures(p, n, query);
             return ResponseEntity.ok(new ApiResponse<>(true, "진료수가 검색 성공", result));
         } catch (IllegalStateException ex) {
             return ResponseEntity.status(503)

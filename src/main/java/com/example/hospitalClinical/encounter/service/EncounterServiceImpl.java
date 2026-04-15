@@ -68,6 +68,7 @@ public class EncounterServiceImpl implements EncounterService {
         if (existing != null && !existing.isEmpty()) {
             throw new BusinessException(ErrorCode.VISIT_ALREADY_EXISTS_FOR_RECEPTION); //중복이면 종료 (트랜잭션 롤백
         }
+        assertNoOtherInProgressVisitForDoctor(doctorId, receptionId, null);
         //접수 상태 변경(외부 API)//
         ReceptionStatusUpdateRequest statusReq = new ReceptionStatusUpdateRequest();
         statusReq.setStatus("IN_PROGRESS");
@@ -103,6 +104,7 @@ public class EncounterServiceImpl implements EncounterService {
                 } else {
                     v.start();
                 }
+                assertNoOtherInProgressVisitForDoctor(request.getDoctorId(), request.getReceptionId(), null);
             } else if (Visit.COMPLETED.equals(u)) {
                 if (request.getStartTime() != null) {
                     v.start(request.getStartTime());
@@ -132,6 +134,9 @@ public class EncounterServiceImpl implements EncounterService {
             v.applyAdministrativeVisitStatus(visitStatus);
         } catch (IllegalArgumentException e) {
             throw new BusinessException(ErrorCode.INVALID_CLINICAL_STATUS);
+        }
+        if (Visit.IN_PROGRESS.equals(v.getVisitStatus())) {
+            assertNoOtherInProgressVisitForDoctor(v.getDoctorId(), v.getReceptionId(), visitId);
         }
         Visit saved = visitRepo.save(v);
         if (Visit.COMPLETED.equals(saved.getVisitStatus())) {
@@ -216,6 +221,20 @@ public class EncounterServiceImpl implements EncounterService {
         return visitQueueRepo.findAllByOrderByQueueOrderAsc();
     }
 
+    private void assertNoOtherInProgressVisitForDoctor(Long doctorId, Long receptionId, Long excludeVisitId) {
+        if (doctorId == null || receptionId == null) {
+            return;
+        }
+        for (Visit ov : visitRepo.findByVisitStatusAndDoctorId(Visit.IN_PROGRESS, doctorId)) {
+            if (excludeVisitId != null && excludeVisitId.equals(ov.getVisitId())) {
+                continue;
+            }
+            if (!receptionId.equals(ov.getReceptionId())) {
+                throw new BusinessException(ErrorCode.DOCTOR_VISIT_ALREADY_IN_PROGRESS);
+            }
+        }
+    }
+
     private void notifyBillingForCompletedVisit(Visit visit) {
         List<BillingClinicalClaimItem> items = buildBillingClaimItems(visit.getVisitId());
         if (items.isEmpty()) {
@@ -260,7 +279,7 @@ public class EncounterServiceImpl implements EncounterService {
                 if (sourceId == null) {
                     continue;
                 }
-                String name = line.getItemName() != null ? line.getItemName() : "";
+                String name = line.getItemDetailCode() != null ? line.getItemDetailCode() : "";
                 String code = line.getItemCode() != null ? line.getItemCode() : "";
                 out.add(
                         BillingClinicalClaimItem.builder()

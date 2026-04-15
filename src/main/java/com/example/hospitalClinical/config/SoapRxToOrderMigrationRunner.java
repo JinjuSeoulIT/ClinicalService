@@ -2,6 +2,7 @@ package com.example.hospitalClinical.config;
 
 import com.example.hospitalClinical.documentation.entity.SoapRx;
 import com.example.hospitalClinical.documentation.repository.SoapRxRepo;
+import com.example.hospitalClinical.encounter.entity.Visit;
 import com.example.hospitalClinical.encounter.repository.VisitRepo;
 import com.example.hospitalClinical.order.entity.OrderType;
 import com.example.hospitalClinical.order.entity.Order;
@@ -33,8 +34,13 @@ public class SoapRxToOrderMigrationRunner implements ApplicationRunner {
             if (orderRepo.existsByLegacyPrescriptionId(rx.getPrescriptionId())) {
                 continue;
             }
-            if (!visitRepo.existsById(rx.getVisitId())) {
+            Visit visit = visitRepo.findById(rx.getVisitId()).orElse(null);
+            if (visit == null) {
                 log.warn("SoapRx skip: visit not found prescriptionId={} visitId={}", rx.getPrescriptionId(), rx.getVisitId());
+                continue;
+            }
+            if (visit.getPatientId() == null) {
+                log.warn("SoapRx skip: visit has no patientId prescriptionId={}", rx.getPrescriptionId());
                 continue;
             }
             String name = rx.getMedicationName() != null ? rx.getMedicationName().trim() : "";
@@ -44,22 +50,10 @@ public class SoapRxToOrderMigrationRunner implements ApplicationRunner {
             }
             Order o = Order.create(rx.getVisitId(), OrderType.PRESCRIPTION, "REQUESTED", null);
             o.setLegacyPrescriptionId(rx.getPrescriptionId());
-            o.addItem(OrderItem.createPrescriptionLine(
-                    name,
-                    trimToNull(rx.getDosage()),
-                    null,
-                    trimToNull(rx.getDays())));
+            o.addItem(OrderItem.createPrescriptionLine(name, visit.getPatientId(), null, null));
             orderRepo.save(o);
             migrated++;
         }
         log.info("SoapRx → Order migration finished migratedRows={}", migrated);
-    }
-
-    private static String trimToNull(String s) {
-        if (s == null) {
-            return null;
-        }
-        String t = s.trim();
-        return t.isEmpty() ? null : t;
     }
 }

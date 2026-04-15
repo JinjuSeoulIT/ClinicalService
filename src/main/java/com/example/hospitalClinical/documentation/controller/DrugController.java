@@ -2,7 +2,7 @@ package com.example.hospitalClinical.documentation.controller;
 
 import com.example.hospitalClinical.common.response.ApiResponse;
 import com.example.hospitalClinical.documentation.dto.DrugSearchResult;
-import com.example.hospitalClinical.documentation.service.ChartService;
+import com.example.hospitalClinical.documentation.service.DocumentationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -25,14 +25,15 @@ import org.springframework.web.bind.annotation.RestController;
 })
 public class DrugController {
 
-    private final ChartService chartService;
+    private final DocumentationService documentationService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<DrugSearchResult>> search(
             @RequestParam(value = "itemName", required = false) String itemName,
+            @RequestParam(value = "itemSeq", required = false) String itemSeq,
             @RequestParam(value = "pageNo", required = false) Integer pageNo,
             @RequestParam(value = "numOfRows", required = false) Integer numOfRows) {
-        DrugSearchResult result = chartService.searchDrugs(pageNo, numOfRows, itemName);
+        DrugSearchResult result = documentationService.searchDrugs(pageNo, numOfRows, itemName, itemSeq);
         return ResponseEntity.ok(ApiResponse.ok("약품 검색 성공", result));
     }
 }

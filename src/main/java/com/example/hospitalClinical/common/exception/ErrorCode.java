@@ -14,6 +14,9 @@ public enum ErrorCode {
     INVALID_CLINICAL_STATUS(HttpStatus.BAD_REQUEST, "허용되지 않는 진료 상태 변경입니다."),
     CLINICAL_ACCESS_DENIED(HttpStatus.FORBIDDEN, "접근 권한이 없습니다."),
     VISIT_ALREADY_EXISTS_FOR_RECEPTION(HttpStatus.BAD_REQUEST, "해당 접수로 이미 진행 중인 진료가 있습니다."),
+    DOCTOR_VISIT_ALREADY_IN_PROGRESS(
+            HttpStatus.BAD_REQUEST,
+            "다른 환자의 진료가 진행 중입니다. 진료 완료 후 신규 진료를 시작해 주세요."),
 
     // RECEPTION (접수 서비스 연동)
     RECEPTION_NOT_FOUND(HttpStatus.NOT_FOUND, "접수를 찾을 수 없습니다."),

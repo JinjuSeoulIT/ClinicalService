@@ -2,7 +2,7 @@ package com.example.hospitalClinical.documentation.controller;
 
 import com.example.hospitalClinical.common.response.ApiResponse;
 import com.example.hospitalClinical.documentation.dto.NoteHistoryResponse;
-import com.example.hospitalClinical.documentation.service.ChartService;
+import com.example.hospitalClinical.documentation.service.DocumentationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/notes/{noteId}/history")
 public class NoteHistoryController {
 
-    private final ChartService chartService;
+    private final DocumentationService documentationService;
 
     @PostMapping
     public ResponseEntity<ApiResponse<NoteHistoryResponse>> create(
@@ -28,7 +28,7 @@ public class NoteHistoryController {
         log.info("[POST] /api/notes/{}/history - 진료기록 이력 등록", noteId);
         String changeType = body != null ? body.get("changeType") : null;
         Long changedBy = body != null && body.get("changedBy") != null ? Long.parseLong(body.get("changedBy")) : null;
-        NoteHistoryResponse result = NoteHistoryResponse.from(chartService.createNoteHistory(noteId, changeType, changedBy));
+        NoteHistoryResponse result = NoteHistoryResponse.from(documentationService.createNoteHistory(noteId, changeType, changedBy));
         return ResponseEntity.status(201).body(new ApiResponse<>(true, "진료기록 이력 등록 성공", result));
     }
 
@@ -37,14 +37,14 @@ public class NoteHistoryController {
             @PathVariable("noteId") Long noteId,
             @PathVariable("historyId") Long historyId) {
         log.info("[GET] /api/notes/{}/history/{} - 진료기록 이력 조회", noteId, historyId);
-        NoteHistoryResponse result = NoteHistoryResponse.from(chartService.getNoteHistory(historyId));
+        NoteHistoryResponse result = NoteHistoryResponse.from(documentationService.getNoteHistory(historyId));
         return ResponseEntity.ok(new ApiResponse<>(true, "진료기록 이력 조회 성공", result));
     }
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<NoteHistoryResponse>>> list(@PathVariable("noteId") Long noteId) {
         log.info("[GET] /api/notes/{}/history - 진료기록 이력 목록 조회", noteId);
-        List<NoteHistoryResponse> list = chartService.listNoteHistoryByNoteId(noteId).stream()
+        List<NoteHistoryResponse> list = documentationService.listNoteHistoryByNoteId(noteId).stream()
                 .map(NoteHistoryResponse::from)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(new ApiResponse<>(true, "진료기록 이력 목록 조회 성공", list));

@@ -1,9 +1,13 @@
 package com.example.hospitalClinical.order.service;
 
+import com.example.hospitalClinical.order.dto.MedicationRecordCreateRequest;
+import com.example.hospitalClinical.order.dto.MedicationRecordResponse;
 import com.example.hospitalClinical.order.dto.OrderCreateRequest;
 import com.example.hospitalClinical.order.dto.OrderItemCreateRequest;
 import com.example.hospitalClinical.order.dto.OrderItemResponse;
 import com.example.hospitalClinical.order.dto.OrderResponse;
+import com.example.hospitalClinical.order.dto.TreatmentResultCreateRequest;
+import com.example.hospitalClinical.order.dto.TreatmentResultResponse;
 import com.example.hospitalClinical.order.entity.Order;
 import com.example.hospitalClinical.order.entity.OrderItem;
 import com.example.hospitalClinical.order.entity.OrderResult;
@@ -76,6 +80,15 @@ public interface OrderVisitService {
     // 검사 결과 수정
     OrderResult updateOrderResult(Long resultId, String resultValue, String resultStatus);
 
-}
+    // ==============================
+    // 5️⃣ 투약기록 / 처치결과 (진료 DB + 진료지원 연동)
+    // ==============================
 
-    // 기능(도메인) 단위로 묶고, controller용/내부 로직용 분리.
+    MedicationRecordResponse createMedicationRecord(Long visitId, MedicationRecordCreateRequest request);
+
+    TreatmentResultResponse createTreatmentResult(Long visitId, TreatmentResultCreateRequest request);
+
+    List<MedicationRecordResponse> listMedicationRecordsByVisit(Long visitId);
+
+    List<TreatmentResultResponse> listTreatmentResultsByVisit(Long visitId);
+}

@@ -10,6 +10,7 @@ public interface VisitRepo extends JpaRepository<Visit, Long> {
     List<Visit> findByPatientIdOrderByStartTimeDesc(Long patientId);
     List<Visit> findByReceptionIdOrderByStartTimeDesc(Long receptionId);
     List<Visit> findByReceptionIdAndVisitStatus(Long receptionId, String visitStatus);
+    List<Visit> findByVisitStatusAndDoctorId(String visitStatus, Long doctorId);
     List<Visit> findByVisitStatusOrderByStartTimeAsc(String visitStatus);
     List<Visit> findAllByOrderByStartTimeDesc();
 }

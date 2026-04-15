@@ -2,7 +2,7 @@ package com.example.hospitalClinical.documentation.controller;
 
 import com.example.hospitalClinical.common.response.ApiResponse;
 import com.example.hospitalClinical.documentation.dto.StandardDiagnosisItemDto;
-import com.example.hospitalClinical.documentation.service.ChartService;
+import com.example.hospitalClinical.documentation.service.DocumentationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -25,7 +25,7 @@ import java.util.List;
 @RequestMapping("/api/master-diagnoses")
 public class MasterDiagnosisController {
 
-    private final ChartService chartService;
+    private final DocumentationService documentationService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<StandardDiagnosisItemDto>>> search(
@@ -36,7 +36,7 @@ public class MasterDiagnosisController {
         log.info("[GET] /api/master-diagnoses query={} pageNo={} numOfRows={} diseaseType={}", query, pageNo,
                 numOfRows, diseaseType);
         List<StandardDiagnosisItemDto> list =
-                chartService.searchStandardDiagnosisMasters(query, pageNo, numOfRows, diseaseType);
+                documentationService.searchStandardDiagnosisMasters(query, pageNo, numOfRows, diseaseType);
         return ResponseEntity.ok(ApiResponse.ok("표준 상병 검색 성공", list));
     }
 }

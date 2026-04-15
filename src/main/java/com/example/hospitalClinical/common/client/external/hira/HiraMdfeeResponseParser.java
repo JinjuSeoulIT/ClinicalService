@@ -48,7 +48,7 @@ public class HiraMdfeeResponseParser {
             int total = parseInt(bodyNode.path("totalCount"), 0);
             int pageNo = parseInt(bodyNode.path("pageNo"), requestedPageNo);
             int numOfRows = parseInt(bodyNode.path("numOfRows"), requestedNumOfRows);
-            List<HiraProcedureItemDto> items = mapItems(bodyNode.path("items"));
+            List<HiraProcedureItemDto> items = collectItemsFromJsonBody(bodyNode);
             return HiraProcedureSearchResult.builder()
                     .resultCode(resultCode)
                     .resultMsg(resultMsg)
@@ -124,6 +124,27 @@ public class HiraMdfeeResponseParser {
                 .totalCount(0)
                 .items(List.of())
                 .build();
+    }
+
+    private List<HiraProcedureItemDto> collectItemsFromJsonBody(JsonNode bodyNode) {
+        List<HiraProcedureItemDto> fromItems = mapItems(bodyNode.path("items"));
+        if (!fromItems.isEmpty()) {
+            return fromItems;
+        }
+        JsonNode directItem = bodyNode.path("item");
+        if (directItem.isArray()) {
+            List<HiraProcedureItemDto> out = new ArrayList<>();
+            for (JsonNode n : directItem) {
+                addItem(out, n);
+            }
+            return out;
+        }
+        if (directItem.isObject() && !directItem.isMissingNode()) {
+            List<HiraProcedureItemDto> out = new ArrayList<>();
+            addItem(out, directItem);
+            return out;
+        }
+        return fromItems;
     }
 
     private List<HiraProcedureItemDto> mapItems(JsonNode itemsNode) {

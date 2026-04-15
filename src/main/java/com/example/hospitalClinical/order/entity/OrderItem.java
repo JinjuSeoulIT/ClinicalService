@@ -1,11 +1,10 @@
 package com.example.hospitalClinical.order.entity;
 
 import jakarta.persistence.*;
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "CLINICAL_ORDER_ITEM")
+@Table(name = "CLINICAL_LAB_ORDER_ITEM")
 public class OrderItem {
 
     @Id
@@ -21,68 +20,111 @@ public class OrderItem {
     @Column(name = "ITEM_CODE", length = 50)
     private String itemCode;
 
-    @Column(name = "ITEM_NAME", length = 600)
-    private String itemName;
+    @Column(name = "ITEM_DETAIL_CODE", length = 600)
+    private String itemDetailCode;
 
-    @Column(name = "ITEM_DOSAGE", length = 200)
-    private String itemDosage;
+    @Column(name = "PATIENT_ID", nullable = false)
+    private Long patientId;
 
-    @Column(name = "DOSE", precision = 10, scale = 2)
-    private BigDecimal dose;
+    @Column(name = "PATIENT_NAME", length = 200)
+    private String patientName;
 
-    @Column(name = "FREQUENCY", length = 100)
-    private String frequency;
-
-    @Column(name = "DURATION", length = 100)
-    private String duration;
+    @Column(name = "DEPARTMENT_NAME", length = 200)
+    private String departmentName;
 
     @Column(name = "CREATED_AT")
     private LocalDateTime createdAt;
 
     protected OrderItem() {}
 
-    public static OrderItem create(String itemCode, BigDecimal dose, String frequency, String duration) {
+    public static OrderItem createLabLine(
+            String itemCode,
+            String itemDetailCode,
+            Long patientId,
+            String patientName,
+            String departmentName) {
         OrderItem i = new OrderItem();
-        i.itemCode = itemCode;
-        i.dose = dose;
-        i.frequency = frequency;
-        i.duration = duration;
+        i.itemCode = emptyToNull(itemCode);
+        i.itemDetailCode = emptyToNull(itemDetailCode);
+        i.patientId = patientId;
+        i.patientName = emptyToNull(patientName);
+        i.departmentName = emptyToNull(departmentName);
         return i;
     }
 
     public static OrderItem createPrescriptionLine(
-            String itemName, String itemDosage, String frequency, String duration) {
-        OrderItem i = new OrderItem();
-        i.itemName = itemName;
-        i.itemDosage = itemDosage;
-        i.frequency = frequency;
-        i.duration = duration;
-        return i;
+            String itemDetailCode, Long patientId, String patientName, String departmentName) {
+        return createLabLine(null, itemDetailCode, patientId, patientName, departmentName);
+    }
+
+    private static String emptyToNull(String s) {
+        if (s == null) {
+            return null;
+        }
+        String t = s.trim();
+        return t.isEmpty() ? null : t;
     }
 
     @PrePersist
     void prePersist() {
-        if (createdAt == null) createdAt = LocalDateTime.now();
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
     }
 
     void setOrder(Order order) {
         this.order = order;
     }
 
-    public void setItemCode(String itemCode) { this.itemCode = itemCode; }
-    public void setItemName(String itemName) { this.itemName = itemName; }
-    public void setItemDosage(String itemDosage) { this.itemDosage = itemDosage; }
-    public void setDose(BigDecimal dose) { this.dose = dose; }
-    public void setFrequency(String frequency) { this.frequency = frequency; }
-    public void setDuration(String duration) { this.duration = duration; }
+    public void setItemCode(String itemCode) {
+        this.itemCode = emptyToNull(itemCode);
+    }
 
-    public Long getOrderItemId() { return orderItemId; }
-    public Order getOrder() { return order; }
-    public String getItemCode() { return itemCode; }
-    public String getItemName() { return itemName; }
-    public String getItemDosage() { return itemDosage; }
-    public BigDecimal getDose() { return dose; }
-    public String getFrequency() { return frequency; }
-    public String getDuration() { return duration; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setItemDetailCode(String itemDetailCode) {
+        this.itemDetailCode = emptyToNull(itemDetailCode);
+    }
+
+    public void setPatientId(Long patientId) {
+        this.patientId = patientId;
+    }
+
+    public void setPatientName(String patientName) {
+        this.patientName = emptyToNull(patientName);
+    }
+
+    public void setDepartmentName(String departmentName) {
+        this.departmentName = emptyToNull(departmentName);
+    }
+
+    public Long getOrderItemId() {
+        return orderItemId;
+    }
+
+    public Order getOrder() {
+        return order;
+    }
+
+    public String getItemCode() {
+        return itemCode;
+    }
+
+    public String getItemDetailCode() {
+        return itemDetailCode;
+    }
+
+    public Long getPatientId() {
+        return patientId;
+    }
+
+    public String getPatientName() {
+        return patientName;
+    }
+
+    public String getDepartmentName() {
+        return departmentName;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
 }

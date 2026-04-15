@@ -16,7 +16,7 @@ public class DrugApiClient {
     private final DrugApiProperties properties;
     private final RestClient restClient = RestClient.create();
 
-    public String fetchEasyDrugList(int pageNo, int numOfRows, String itemName) {
+    public String fetchEasyDrugList(int pageNo, int numOfRows, String itemName, String itemSeq) {
         String base = properties.getBaseUrl();
         String key = properties.getServiceKey();
         if (base == null || base.isBlank() || key == null || key.isBlank() || "인증키".equals(key.trim())) {
@@ -30,7 +30,9 @@ public class DrugApiClient {
                 .queryParam("pageNo", String.valueOf(pageNo))
                 .queryParam("numOfRows", String.valueOf(numOfRows))
                 .queryParam("type", "json");
-        if (StringUtils.hasText(itemName)) {
+        if (StringUtils.hasText(itemSeq)) {
+            b.queryParam("itemSeq", itemSeq.trim());
+        } else if (StringUtils.hasText(itemName)) {
             b.queryParam("itemName", itemName.trim());
         }
         URI uri = b.encode(StandardCharsets.UTF_8).build().toUri();

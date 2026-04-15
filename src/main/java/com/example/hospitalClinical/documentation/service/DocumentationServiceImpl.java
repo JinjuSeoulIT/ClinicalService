@@ -3,10 +3,13 @@ package com.example.hospitalClinical.documentation.service;
 import com.example.hospitalClinical.common.client.external.disease.DiseaseApiClient;
 import com.example.hospitalClinical.common.client.external.disease.DiseaseDissNameCodeJsonParser;
 import com.example.hospitalClinical.common.client.external.drug.DrugApiClient;
+import com.example.hospitalClinical.common.client.external.hira.HiraApiClient;
+import com.example.hospitalClinical.common.client.external.hira.HiraMdfeeResponseParser;
 import com.example.hospitalClinical.common.exception.BusinessException;
 import com.example.hospitalClinical.common.exception.ErrorCode;
 import com.example.hospitalClinical.documentation.dto.DrugItemDto;
 import com.example.hospitalClinical.documentation.dto.DrugSearchResult;
+import com.example.hospitalClinical.documentation.dto.HiraProcedureSearchResult;
 import com.example.hospitalClinical.documentation.dto.StandardDiagnosisItemDto;
 import com.example.hospitalClinical.documentation.DiagnosisDxSource;
 import com.example.hospitalClinical.documentation.dto.SoapDxRequest;
@@ -44,7 +47,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class ChartServiceImpl implements ChartService {
+public class DocumentationServiceImpl implements DocumentationService {
 
     private final NoteRepo noteRepo;
     private final DiagnosisRepo diagnosisRepo;
@@ -56,6 +59,8 @@ public class ChartServiceImpl implements ChartService {
     private final DrugApiClient drugApiClient;
     private final DiseaseApiClient diseaseApiClient;
     private final DiseaseDissNameCodeJsonParser diseaseDissNameCodeJsonParser;
+    private final HiraApiClient hiraApiClient;
+    private final HiraMdfeeResponseParser hiraMdfeeResponseParser;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -172,11 +177,18 @@ public class ChartServiceImpl implements ChartService {
 
     @Override
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    public DrugSearchResult searchDrugs(Integer pageNo, Integer numOfRows, String itemName) {
+    public DrugSearchResult searchDrugs(Integer pageNo, Integer numOfRows, String itemName, String itemSeq) {
         int p = pageNo != null && pageNo > 0 ? pageNo : 1;
         int n = numOfRows != null && numOfRows > 0 ? Math.min(numOfRows, 100) : 10;
-        String json = drugApiClient.fetchEasyDrugList(p, n, itemName);
+        String json = drugApiClient.fetchEasyDrugList(p, n, itemName, itemSeq);
         return parseDrugSearchResult(json, p, n);
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public HiraProcedureSearchResult searchProcedures(int pageNo, int numOfRows, String korNmQuery) {
+        String raw = hiraApiClient.fetchDiagnosisMdfeeList(pageNo, numOfRows, korNmQuery);
+        return hiraMdfeeResponseParser.parse(raw, pageNo, numOfRows);
     }
 
     @Override

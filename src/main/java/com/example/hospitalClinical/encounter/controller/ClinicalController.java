@@ -39,7 +39,7 @@ public class ClinicalController {
 
     @PostMapping("/start")
     public ResponseEntity<ApiResponse<VisitStartResponse>> start(@Valid @RequestBody VisitStartRequest request) {
-        log.info("[POST] /api/clinical/start - 진료 시작");
+        log.info("[POST] /api/clinical/start - 진료 시작");     //접수id와 changedby가 같이 와서 각각 long로 하지않고 dto로 받음
         VisitStartResponse result = VisitStartResponse.from(encounterService.startVisit(request));
         return ResponseEntity.status(201).body(new ApiResponse<>(true, "진료 시작 성공", result));
     }

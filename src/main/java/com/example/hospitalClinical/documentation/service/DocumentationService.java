@@ -1,6 +1,7 @@
 package com.example.hospitalClinical.documentation.service;
 
 import com.example.hospitalClinical.documentation.dto.DrugSearchResult;
+import com.example.hospitalClinical.documentation.dto.HiraProcedureSearchResult;
 import com.example.hospitalClinical.documentation.dto.StandardDiagnosisItemDto;
 import com.example.hospitalClinical.documentation.dto.SoapDxRequest;
 import com.example.hospitalClinical.documentation.dto.SoapDxResponse;
@@ -14,7 +15,7 @@ import com.example.hospitalClinical.documentation.entity.NoteHistory;
 import java.util.List;
 import java.util.Optional;
 
-public interface ChartService {
+public interface DocumentationService {
 
     Note createNote(Long visitId);
 
@@ -47,7 +48,9 @@ public interface ChartService {
 
     List<NoteAttachment> listAttachmentByNoteId(Long noteId);
 
-    DrugSearchResult searchDrugs(Integer pageNo, Integer numOfRows, String itemName);
+    DrugSearchResult searchDrugs(Integer pageNo, Integer numOfRows, String itemName, String itemSeq);
+
+    HiraProcedureSearchResult searchProcedures(int pageNo, int numOfRows, String korNmQuery);
 
     List<SoapDxResponse> listSoapDx(Long visitId);
 

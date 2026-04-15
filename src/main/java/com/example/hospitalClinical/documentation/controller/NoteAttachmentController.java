@@ -2,7 +2,7 @@ package com.example.hospitalClinical.documentation.controller;
 
 import com.example.hospitalClinical.common.response.ApiResponse;
 import com.example.hospitalClinical.documentation.dto.NoteAttachmentResponse;
-import com.example.hospitalClinical.documentation.service.ChartService;
+import com.example.hospitalClinical.documentation.service.DocumentationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/notes/{noteId}/attachments")
 public class NoteAttachmentController {
 
-    private final ChartService chartService;
+    private final DocumentationService documentationService;
 
     @PostMapping
     public ResponseEntity<ApiResponse<NoteAttachmentResponse>> create(
@@ -29,7 +29,7 @@ public class NoteAttachmentController {
         String fileName = body != null ? body.get("fileName") : null;
         String filePath = body != null ? body.get("filePath") : null;
         String fileType = body != null ? body.get("fileType") : null;
-        NoteAttachmentResponse result = NoteAttachmentResponse.from(chartService.createAttachment(noteId, fileName, filePath, fileType));
+        NoteAttachmentResponse result = NoteAttachmentResponse.from(documentationService.createAttachment(noteId, fileName, filePath, fileType));
         return ResponseEntity.status(201).body(new ApiResponse<>(true, "첨부 등록 성공", result));
     }
 
@@ -38,14 +38,14 @@ public class NoteAttachmentController {
             @PathVariable("noteId") Long noteId,
             @PathVariable("attachmentId") Long attachmentId) {
         log.info("[GET] /api/notes/{}/attachments/{} - 첨부 조회", noteId, attachmentId);
-        NoteAttachmentResponse result = NoteAttachmentResponse.from(chartService.getAttachment(attachmentId));
+        NoteAttachmentResponse result = NoteAttachmentResponse.from(documentationService.getAttachment(attachmentId));
         return ResponseEntity.ok(new ApiResponse<>(true, "첨부 조회 성공", result));
     }
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<NoteAttachmentResponse>>> list(@PathVariable("noteId") Long noteId) {
         log.info("[GET] /api/notes/{}/attachments - 첨부 목록 조회", noteId);
-        List<NoteAttachmentResponse> list = chartService.listAttachmentByNoteId(noteId).stream()
+        List<NoteAttachmentResponse> list = documentationService.listAttachmentByNoteId(noteId).stream()
                 .map(NoteAttachmentResponse::from)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(new ApiResponse<>(true, "첨부 목록 조회 성공", list));
