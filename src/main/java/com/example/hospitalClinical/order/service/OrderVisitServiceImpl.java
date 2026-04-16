@@ -1,7 +1,6 @@
 package com.example.hospitalClinical.order.service;
 
 import com.example.hospitalClinical.common.client.external.clinicalsupport.MedicationRecordOutboundRequest;
-import com.example.hospitalClinical.common.client.external.clinicalsupport.NursingSupportOrderApiClient;
 import com.example.hospitalClinical.common.client.external.clinicalsupport.TreatmentResultOutboundRequest;
 import com.example.hospitalClinical.common.client.internal.reception.ReceptionClient;
 import com.example.hospitalClinical.common.client.internal.reception.ReceptionResponse;
@@ -34,6 +33,7 @@ import com.example.hospitalClinical.order.repository.OrderItemRepo;
 import com.example.hospitalClinical.order.repository.OrderRepo;
 import com.example.hospitalClinical.order.repository.OrderResultRepo;
 import com.example.hospitalClinical.order.repository.TreatmentResultRepo;
+import com.example.hospitalClinical.order.integration.clinicalsupport.kafka.ClinicalSupportOrderEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -69,7 +69,7 @@ public class OrderVisitServiceImpl implements OrderVisitService {
     private final ReceptionClient receptionClient;
     private final MedicationRecordRepo medicationRecordRepo;
     private final TreatmentResultRepo treatmentResultRepo;
-    private final NursingSupportOrderApiClient nursingSupportOrderApiClient;
+    private final ClinicalSupportOrderEventPublisher clinicalSupportOrderEventPublisher;
 
     private static final Set<String> SUPPORT_ALLOWED_ORDER_STATUS =
             Set.of("REQUESTED", "IN_PROGRESS", "COMPLETED", "CANCELLED");   //
@@ -401,7 +401,7 @@ public class OrderVisitServiceImpl implements OrderVisitService {
                     .doseKind(entity.getDoseKind())
                     .progressStatus(entity.getStatus())
                     .build();
-            nursingSupportOrderApiClient.postMedicationRecord(outbound);
+            clinicalSupportOrderEventPublisher.publishMedicationRecord(outbound);
         } catch (Exception e) {
             log.warn("진료지원 투약 연동 실패 medicationId={}", medicationId, e);
         }
@@ -442,7 +442,7 @@ public class OrderVisitServiceImpl implements OrderVisitService {
                     .progressStatus(entity.getStatus())
                     .detail(entity.getDetail())
                     .build();
-            nursingSupportOrderApiClient.postTreatmentResult(outbound);
+            clinicalSupportOrderEventPublisher.publishTreatmentResult(outbound);
         } catch (Exception e) {
             log.warn("진료지원 처치 연동 실패 procedureResultId={}", procedureResultId, e);
         }

@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class TestExecutionRegisterRequest {
 
+    private String detailCode;
 
     private Long patientId;
 
@@ -34,5 +35,5 @@ public class TestExecutionRegisterRequest {
 
     private LocalDateTime completedAt;
 
-    private Long performerId;
+    private String performerId;
 }

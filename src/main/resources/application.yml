@@ -5,15 +5,30 @@ spring:
     default: local
   jpa:
     open-in-view: false
+  cloud:
+    stream:
+      defaultBinder: kafka
+      default:
+        contentType: application/json
+      bindings:
+        output-medicationRecord-out-0:
+          destination: medicationRecord
+        output-treatmentResult-out-0:
+          destination: treatmentResult
+        output-testExecution-out-0:
+          destination: testExecution
+      kafka:
+        binder:
+          brokers: ${KAFKA_BROKERS:127.0.0.1}
+          defaultBrokerPort: ${KAFKA_BROKER_PORT:9092}
 
 reception:
   api:
     base-url: ${RECEPTION_API_BASE_URL:http://192.168.1.55:8283}
 
 clinical-support:
-  api:
-    base-url: ${CLINICAL_SUPPORT_API_BASE_URL:http://192.168.1.66:8181}
-    enabled: ${CLINICAL_SUPPORT_API_ENABLED:true} 
+  order:
+    enabled: ${CLINICAL_SUPPORT_ORDER_ENABLED:true}
 
 billing:
   api:
