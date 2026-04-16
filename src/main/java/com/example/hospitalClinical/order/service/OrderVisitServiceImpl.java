@@ -254,7 +254,7 @@ public class OrderVisitServiceImpl implements OrderVisitService {
         OrderItem item =
                 toOrderItem(order.getOrderType(), request, visit.getPatientId(), np.patientName(), np.departmentName());
         order.addItem(item);
-        orderRepo.save(order);
+        orderRepo.saveAndFlush(order);
         if (order.getOrderType() != null
                 && order.getOrderType().isLabCommittedType()
                 && item.getOrderItemId() != null) {
@@ -550,7 +550,7 @@ public class OrderVisitServiceImpl implements OrderVisitService {
         for (OrderItemCreateRequest req : items) {
             o.addItem(toOrderItem(orderType, req, patientId, np.patientName(), np.departmentName()));
         }
-        Order saved = orderRepo.save(o);
+        Order saved = orderRepo.saveAndFlush(o);
         publishLabOrderCommittedIfNeeded(saved);
         return saved;
     }

@@ -19,7 +19,7 @@ spring:
           destination: testExecution
       kafka:
         binder:
-          brokers: ${KAFKA_BROKERS:127.0.0.1}
+          brokers: ${KAFKA_BROKERS:192.168.1.60}
           defaultBrokerPort: ${KAFKA_BROKER_PORT:9092}
 
 reception:
