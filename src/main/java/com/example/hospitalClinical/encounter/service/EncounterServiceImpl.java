@@ -22,13 +22,20 @@ import com.example.hospitalClinical.encounter.repository.VisitStatusHistoryRepo;
 import com.example.hospitalClinical.order.entity.Order;
 import com.example.hospitalClinical.order.entity.OrderItem;
 import com.example.hospitalClinical.order.service.OrderVisitService;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -44,6 +51,15 @@ public class EncounterServiceImpl implements EncounterService {
     private final ReceptionClient receptionClient;
     private final BillingApiClient billingApiClient;
     private final OrderVisitService orderVisitService;
+    private final PlatformTransactionManager transactionManager;
+
+    private TransactionTemplate staleCloseTxn;
+
+    @PostConstruct
+    void initStaleCloseTxn() {
+        staleCloseTxn = new TransactionTemplate(transactionManager);
+        staleCloseTxn.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+    }
 
     @Override
     @Transactional
@@ -68,7 +84,7 @@ public class EncounterServiceImpl implements EncounterService {
         if (existing != null && !existing.isEmpty()) {
             throw new BusinessException(ErrorCode.VISIT_ALREADY_EXISTS_FOR_RECEPTION); //중복이면 종료 (트랜잭션 롤백
         }
-        assertNoOtherInProgressVisitForDoctor(doctorId, receptionId, null);
+        assertNoConcurrentVisit(doctorId, receptionId, null);
         //접수 상태 변경(외부 API)//
         ReceptionStatusUpdateRequest statusReq = new ReceptionStatusUpdateRequest();
         statusReq.setStatus("IN_PROGRESS");
@@ -104,7 +120,7 @@ public class EncounterServiceImpl implements EncounterService {
                 } else {
                     v.start();
                 }
-                assertNoOtherInProgressVisitForDoctor(request.getDoctorId(), request.getReceptionId(), null);
+                assertNoConcurrentVisit(request.getDoctorId(), request.getReceptionId(), null);
             } else if (Visit.COMPLETED.equals(u)) {
                 if (request.getStartTime() != null) {
                     v.start(request.getStartTime());
@@ -112,6 +128,14 @@ public class EncounterServiceImpl implements EncounterService {
                     v.start();
                 }
                 v.complete();
+            } else if (Visit.AUTO_CLOSED.equals(u)) {
+                if (request.getStartTime() != null) {
+                    v.start(request.getStartTime());
+                } else {
+                    v.start();
+                }
+                assertNoConcurrentVisit(request.getDoctorId(), request.getReceptionId(), null);
+                v.autoCloseStale(null);
             } else if (!Visit.WAITING.equals(u)) {
                 throw new BusinessException(ErrorCode.INVALID_CLINICAL_STATUS);
             }
@@ -130,17 +154,37 @@ public class EncounterServiceImpl implements EncounterService {
     @Transactional
     public Visit updateVisitStatus(Long visitId, String visitStatus) {
         Visit v = visitRepo.findById(visitId).orElseThrow(VisitNotFoundException::new);
+        String prev = v.getVisitStatus();
         try {
             v.applyAdministrativeVisitStatus(visitStatus);
         } catch (IllegalArgumentException e) {
             throw new BusinessException(ErrorCode.INVALID_CLINICAL_STATUS);
         }
         if (Visit.IN_PROGRESS.equals(v.getVisitStatus())) {
-            assertNoOtherInProgressVisitForDoctor(v.getDoctorId(), v.getReceptionId(), visitId);
+            assertNoConcurrentVisit(v.getDoctorId(), v.getReceptionId(), visitId);
         }
         Visit saved = visitRepo.save(v);
+        if (!Objects.equals(prev, saved.getVisitStatus())) {
+            visitStatusHistoryRepo.save(VisitStatusHistory.create(saved.getVisitId(), saved.getVisitStatus()));
+        }
         if (Visit.COMPLETED.equals(saved.getVisitStatus())) {
-            notifyBillingForCompletedVisit(saved);
+            notifyBillingCompleted(saved);
+        }
+        if (Visit.AUTO_CLOSED.equals(saved.getVisitStatus()) && Visit.IN_PROGRESS.equals(prev)) {
+            try {
+                ReceptionStatusUpdateRequest endReq = new ReceptionStatusUpdateRequest();
+                endReq.setStatus("PAYMENT_WAIT");
+                endReq.setReasonCode("VISIT_AUTO_CLOSED");
+                endReq.setReasonText("미종료 진료 자동 마감");
+                receptionClient.updateReceptionStatus(saved.getReceptionId(), endReq);
+            } catch (Exception e) {
+                log.warn(
+                        "AUTO_CLOSED visit: reception update skipped visitId={} receptionId={} message={}",
+                        saved.getVisitId(),
+                        saved.getReceptionId(),
+                        e.getMessage()
+                );
+            }
         }
         return saved;
     }
@@ -156,7 +200,7 @@ public class EncounterServiceImpl implements EncounterService {
         endReq.setReasonCode("VISIT_END");
         endReq.setReasonText("진료 완료 → 수납대기");
         receptionClient.updateReceptionStatus(saved.getReceptionId(), endReq);
-        notifyBillingForCompletedVisit(saved);
+        notifyBillingCompleted(saved);
         return saved;
     }
 
@@ -173,6 +217,25 @@ public class EncounterServiceImpl implements EncounterService {
     @Override
     public List<Visit> listByStatus(String visitStatus) {
         return visitRepo.findByVisitStatusOrderByStartTimeAsc(visitStatus);
+    }
+
+    @Override
+    public List<Visit> listByVisitStatuses(List<String> visitStatuses) {
+        if (visitStatuses == null || visitStatuses.isEmpty()) {
+            return List.of();
+        }
+        List<String> normalized =
+                visitStatuses.stream()
+                        .filter(Objects::nonNull)
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .map(String::toUpperCase)
+                        .distinct()
+                        .collect(Collectors.toList());
+        if (normalized.isEmpty()) {
+            return List.of();
+        }
+        return visitRepo.findByVisitStatusInOrderByStartTimeAsc(normalized);
     }
 
     @Override
@@ -221,12 +284,58 @@ public class EncounterServiceImpl implements EncounterService {
         return visitQueueRepo.findAllByOrderByQueueOrderAsc();
     }
 
-    private void assertNoOtherInProgressVisitForDoctor(Long doctorId, Long receptionId, Long excludeVisitId) {
+    @Override
+    public int autoCloseStaleVisits(LocalDateTime dayStart) {
+        List<Visit> list = visitRepo.findStaleInProgress(Visit.IN_PROGRESS, dayStart);
+        int n = 0;
+        for (Visit v : list) {
+            Boolean ok =
+                    staleCloseTxn.execute(
+                            status -> tryAutoCloseVisit(v.getVisitId(), dayStart));
+            if (Boolean.TRUE.equals(ok)) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    private boolean tryAutoCloseVisit(Long visitId, LocalDateTime dayStart) {
+        Visit v = visitRepo.findById(visitId).orElse(null);
+        if (v == null || !Visit.IN_PROGRESS.equals(v.getVisitStatus())) {
+            return false;
+        }
+        LocalDateTime startOrCreated =
+                v.getStartTime() != null ? v.getStartTime() : v.getCreatedAt();
+        if (startOrCreated == null || !startOrCreated.isBefore(dayStart)) {
+            return false;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        v.autoCloseStale(now);
+        visitRepo.save(v);
+        visitStatusHistoryRepo.save(VisitStatusHistory.create(v.getVisitId(), Visit.AUTO_CLOSED));
+        try {
+            ReceptionStatusUpdateRequest endReq = new ReceptionStatusUpdateRequest();
+            endReq.setStatus("PAYMENT_WAIT");
+            endReq.setReasonCode("VISIT_AUTO_CLOSED");
+            endReq.setReasonText("미종료 진료 자동 마감");
+            receptionClient.updateReceptionStatus(v.getReceptionId(), endReq);
+        } catch (Exception e) {
+            log.warn(
+                    "stale visit auto-close: reception status update skipped visitId={} receptionId={} message={}",
+                    v.getVisitId(),
+                    v.getReceptionId(),
+                    e.getMessage()
+            );
+        }
+        return true;
+    }
+
+    private void assertNoConcurrentVisit(Long doctorId, Long receptionId, Long exceptVisitId) {
         if (doctorId == null || receptionId == null) {
             return;
         }
         for (Visit ov : visitRepo.findByVisitStatusAndDoctorId(Visit.IN_PROGRESS, doctorId)) {
-            if (excludeVisitId != null && excludeVisitId.equals(ov.getVisitId())) {
+            if (exceptVisitId != null && exceptVisitId.equals(ov.getVisitId())) {
                 continue;
             }
             if (!receptionId.equals(ov.getReceptionId())) {
@@ -235,8 +344,8 @@ public class EncounterServiceImpl implements EncounterService {
         }
     }
 
-    private void notifyBillingForCompletedVisit(Visit visit) {
-        List<BillingClinicalClaimItem> items = buildBillingClaimItems(visit.getVisitId());
+    private void notifyBillingCompleted(Visit visit) {
+        List<BillingClinicalClaimItem> items = buildClaimLines(visit.getVisitId());
         if (items.isEmpty()) {
             log.warn("[진료→수납] 청구 품목이 없어 claims 전송 생략 visitId={}", visit.getVisitId());
             return;
@@ -265,7 +374,7 @@ public class EncounterServiceImpl implements EncounterService {
         }
     }
 
-    private List<BillingClinicalClaimItem> buildBillingClaimItems(Long visitId) {
+    private List<BillingClinicalClaimItem> buildClaimLines(Long visitId) {
         List<Order> orders = orderVisitService.listOrdersByVisitId(visitId);
         List<BillingClinicalClaimItem> out = new ArrayList<>();
         for (Order order : orders) {

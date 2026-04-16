@@ -6,6 +6,7 @@ import com.example.hospitalClinical.encounter.entity.Visit;
 import com.example.hospitalClinical.encounter.entity.VisitQueue;
 import com.example.hospitalClinical.encounter.entity.VisitStatusHistory;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface EncounterService {
@@ -19,6 +20,9 @@ public interface EncounterService {
     List<Visit> listByPatientId(Long patientId);
     List<Visit> listByReceptionId(Long receptionId);
     List<Visit> listByStatus(String visitStatus);
+
+    List<Visit> listByVisitStatuses(List<String> visitStatuses);
+
     List<Visit> listAll();
 
     VisitStatusHistory createStatusHistory(Long visitId, String status);
@@ -29,4 +33,6 @@ public interface EncounterService {
     VisitQueue getQueue(Long queueId);
     List<VisitQueue> listQueueByVisitId(Long visitId);
     List<VisitQueue> listAllQueue();
+
+    int autoCloseStaleVisits(LocalDateTime dayStart);
 }

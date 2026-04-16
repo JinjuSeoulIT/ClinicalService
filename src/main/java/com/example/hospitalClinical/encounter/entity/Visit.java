@@ -12,8 +12,10 @@ public class Visit {
     public static final String WAITING = "WAITING";
     public static final String IN_PROGRESS = "IN_PROGRESS";
     public static final String COMPLETED = "COMPLETED";
+    public static final String AUTO_CLOSED = "AUTO_CLOSED";
 
-    private static final Set<String> ADMIN_STATUSES = Set.of(WAITING, IN_PROGRESS, COMPLETED);
+    private static final Set<String> ADMIN_STATUSES =
+            Set.of(WAITING, IN_PROGRESS, COMPLETED, AUTO_CLOSED);
 
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "visit_seq_gen")
@@ -50,6 +52,18 @@ public class Visit {
     private LocalDateTime updatedAt;
 
     protected Visit() {}
+
+    public static boolean isTerminalStatus(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return false;
+        }
+        String u = raw.trim().toUpperCase();
+        return COMPLETED.equals(u) || AUTO_CLOSED.equals(u);
+    }
+
+    public boolean isTerminal() {
+        return isTerminalStatus(this.visitStatus);
+    }
 
     public static Visit create(Long patientId, Long doctorId, Long receptionId) {
         if (patientId == null || doctorId == null || receptionId == null) {
@@ -89,6 +103,14 @@ public class Visit {
         this.endTime = endAt != null ? endAt : LocalDateTime.now();
     }
 
+    public void autoCloseStale(LocalDateTime endAt) {
+        if (!IN_PROGRESS.equals(this.visitStatus)) {
+            throw new IllegalStateException("진료 중만 자동 마감 가능");
+        }
+        this.visitStatus = AUTO_CLOSED;
+        this.endTime = endAt != null ? endAt : LocalDateTime.now();
+    }
+
     public void applyAdministrativeVisitStatus(String raw) {
         if (raw == null || raw.isBlank()) {
             throw new IllegalArgumentException();
@@ -102,7 +124,7 @@ public class Visit {
         if (IN_PROGRESS.equals(u) && this.startTime == null) {
             this.startTime = now;
         }
-        if (COMPLETED.equals(u)) {
+        if (COMPLETED.equals(u) || AUTO_CLOSED.equals(u)) {
             if (this.startTime == null) {
                 this.startTime = now;
             }

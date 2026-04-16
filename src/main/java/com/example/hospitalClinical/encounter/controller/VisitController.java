@@ -4,7 +4,10 @@ import com.example.hospitalClinical.common.response.ApiResponse;
 import com.example.hospitalClinical.documentation.dto.DrugSearchResult;
 import com.example.hospitalClinical.documentation.dto.HiraProcedureSearchResult;
 import com.example.hospitalClinical.documentation.service.DocumentationService;
+import com.example.hospitalClinical.encounter.dto.ClinicalVitalAssessResponse;
+import com.example.hospitalClinical.encounter.dto.ClinicalVitalAssessSaveRequest;
 import com.example.hospitalClinical.encounter.dto.VisitResponse;
+import com.example.hospitalClinical.encounter.service.ClinicalVitalAssessService;
 import com.example.hospitalClinical.encounter.service.EncounterService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +33,25 @@ public class VisitController {
 
     private final EncounterService encounterService;
     private final DocumentationService documentationService;
+    private final ClinicalVitalAssessService clinicalVitalAssessService;
+
+    @GetMapping("/{visitId}/vital-assess")
+    public ResponseEntity<ApiResponse<ClinicalVitalAssessResponse>> getVitalAssess(
+            @PathVariable("visitId") Long visitId) {
+        log.info("[GET] /api/visits/{}/vital-assess - 활력·문진 조회", visitId);
+        ClinicalVitalAssessResponse data =
+                clinicalVitalAssessService.getByVisitId(visitId).orElse(null);
+        return ResponseEntity.ok(new ApiResponse<>(true, "활력·문진 조회 성공", data));
+    }
+
+    @PutMapping("/{visitId}/vital-assess")
+    public ResponseEntity<ApiResponse<ClinicalVitalAssessResponse>> saveVitalAssess(
+            @PathVariable("visitId") Long visitId,
+            @RequestBody ClinicalVitalAssessSaveRequest body) {
+        log.info("[PUT] /api/visits/{}/vital-assess - 활력·문진 저장", visitId);
+        ClinicalVitalAssessResponse result = clinicalVitalAssessService.upsert(visitId, body);
+        return ResponseEntity.ok(new ApiResponse<>(true, "활력·문진 저장 성공", result));
+    }
 
     @GetMapping("/{visitId}")
     public ResponseEntity<ApiResponse<VisitResponse>> get(@PathVariable("visitId") Long visitId) {

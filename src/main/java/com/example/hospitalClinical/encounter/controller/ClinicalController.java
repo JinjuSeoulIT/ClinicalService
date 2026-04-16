@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -62,8 +63,24 @@ public class ClinicalController {
             list = encounterService.listByPatientId(patientId).stream().map(VisitResponse::from).collect(Collectors.toList());
         } else if (receptionId != null) {
             list = encounterService.listByReceptionId(receptionId).stream().map(VisitResponse::from).collect(Collectors.toList());
-        } else if (visitStatus != null) {
-            list = encounterService.listByStatus(visitStatus).stream().map(VisitResponse::from).collect(Collectors.toList());
+        } else if (visitStatus != null && !visitStatus.isBlank()) {
+            String trimmed = visitStatus.trim();
+            if (trimmed.contains(",")) {
+                List<String> parts =
+                        Arrays.stream(trimmed.split(","))
+                                .map(String::trim)
+                                .filter(s -> !s.isEmpty())
+                                .toList();
+                list =
+                        encounterService.listByVisitStatuses(parts).stream()
+                                .map(VisitResponse::from)
+                                .collect(Collectors.toList());
+            } else {
+                list =
+                        encounterService.listByStatus(trimmed).stream()
+                                .map(VisitResponse::from)
+                                .collect(Collectors.toList());
+            }
         } else {
             list = encounterService.listAll().stream().map(VisitResponse::from).collect(Collectors.toList());
         }
