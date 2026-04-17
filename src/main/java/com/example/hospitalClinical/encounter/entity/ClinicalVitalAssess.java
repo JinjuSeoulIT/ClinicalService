@@ -128,12 +128,28 @@ public class ClinicalVitalAssess {
         this.pulse = req.getPulse();
         this.respiration = req.getRespiration();
         this.temperature = req.getTemperature();
-        this.spo2 = req.getSpo2();
+        if (req.getSpo2() != null) {
+            this.spo2 = req.getSpo2();
+        }
         this.observation = trimToNull(req.getObservation());
-        this.painScore = req.getPainScore();
-        this.consciousnessLevel = trimToNull(req.getConsciousnessLevel());
-        this.heightCm = trimToNull(req.getHeightCm());
-        this.weightKg = trimToNull(req.getWeightKg());
+        if (req.getPainScore() != null) {
+            this.painScore = req.getPainScore();
+        }
+        if (req.getConsciousnessLevel() != null) {
+            this.consciousnessLevel = trimToNull(req.getConsciousnessLevel());
+        }
+        if (req.getHeightCm() != null) {
+            String hc = trimToNull(req.getHeightCm());
+            if (hc != null) {
+                this.heightCm = hc;
+            }
+        }
+        if (req.getWeightKg() != null) {
+            String wk = trimToNull(req.getWeightKg());
+            if (wk != null) {
+                this.weightKg = wk;
+            }
+        }
         this.chiefComplaint = trimToNull(req.getChiefComplaint());
         this.visitReason = trimToNull(req.getVisitReason());
         this.historyPresentIllness = trimToNull(req.getHistoryPresentIllness());
