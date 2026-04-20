@@ -116,7 +116,9 @@ public class ClinicalVitalAssess {
         if (req.getReceptionId() != null) {
             this.receptionId = req.getReceptionId();
         }
-        this.recordedAt = req.getRecordedAt() != null ? req.getRecordedAt() : LocalDateTime.now();
+        if (this.recordedAt == null) {
+            this.recordedAt = req.getRecordedAt() != null ? req.getRecordedAt() : LocalDateTime.now();
+        }
         this.systolicBp = req.getSystolicBp();
         this.diastolicBp = req.getDiastolicBp();
         this.pulse = req.getPulse();

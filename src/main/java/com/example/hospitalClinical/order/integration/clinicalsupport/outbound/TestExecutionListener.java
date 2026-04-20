@@ -82,7 +82,7 @@ public class TestExecutionListener {
                     .executionType(executionType)
                     .progressStatus("WAITING")
                     .retryNo(0)
-                    .performerId(event.doctorId() != null ? event.doctorId() : null)
+                    .performerId(null)
                     .build();
             try {
                 clinicalSupportOrderEventPublisher.publishTestExecution(req);

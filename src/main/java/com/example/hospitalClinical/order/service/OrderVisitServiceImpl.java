@@ -259,7 +259,7 @@ public class OrderVisitServiceImpl implements OrderVisitService {
                 && order.getOrderType().isLabCommittedType()
                 && item.getOrderItemId() != null) {
             eventPublisher.publishEvent(
-                    new LabOrderCommittedEvent(order.getOrderType(), List.of(item.getOrderItemId()), order.getDoctorId()));
+                    new LabOrderCommittedEvent(order.getOrderType(), List.of(item.getOrderItemId())));
         }
         return item;
     }
@@ -606,7 +606,7 @@ public class OrderVisitServiceImpl implements OrderVisitService {
         if (ids.isEmpty()) {
             return;
         }
-        eventPublisher.publishEvent(new LabOrderCommittedEvent(order.getOrderType(), ids, order.getDoctorId()));
+        eventPublisher.publishEvent(new LabOrderCommittedEvent(order.getOrderType(), ids));
     }
 
     private static void validateOrderItems(OrderType orderType, List<OrderItemCreateRequest> items) {
