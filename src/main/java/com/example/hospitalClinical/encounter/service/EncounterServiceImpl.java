@@ -2,10 +2,9 @@ package com.example.hospitalClinical.encounter.service;
 
 import com.example.hospitalClinical.common.exception.BusinessException;
 import com.example.hospitalClinical.common.exception.ErrorCode;
-import com.example.hospitalClinical.common.client.external.billing.BillingApiClient;
 import com.example.hospitalClinical.common.client.external.billing.BillingClinicalClaimItem;
 import com.example.hospitalClinical.common.client.external.billing.BillingClinicalCompletedRequest;
-import com.example.hospitalClinical.common.client.external.billing.BillingClinicalCompletedResult;
+import com.example.hospitalClinical.common.integration.billing.kafka.BillingClinicalCompletedEventPublisher;
 import com.example.hospitalClinical.common.client.internal.reception.ReceptionClient;
 import com.example.hospitalClinical.common.client.internal.reception.ReceptionResponse;
 import com.example.hospitalClinical.common.client.internal.reception.ReceptionStatusUpdateRequest;
@@ -56,7 +55,7 @@ public class EncounterServiceImpl implements EncounterService {
     private final VisitStatusHistoryRepo visitStatusHistoryRepo;
     private final VisitQueueRepo visitQueueRepo;
     private final ReceptionClient receptionClient;
-    private final BillingApiClient billingApiClient;
+    private final BillingClinicalCompletedEventPublisher billingClinicalCompletedEventPublisher;
     private final OrderVisitService orderVisitService;
     private final PlatformTransactionManager transactionManager;
 
@@ -387,20 +386,9 @@ public class EncounterServiceImpl implements EncounterService {
                 .occurredAt(visit.getEndTime() != null ? visit.getEndTime() : visit.getUpdatedAt())
                 .items(items)
                 .build();
-        try {
-            ApiResponse<BillingClinicalCompletedResult> response = billingApiClient.notifyClinicalCompleted(request);
-            BillingClinicalCompletedResult result = response.getResult();
-            log.info(
-                    "[진료→수납] 완료 알림 전송 visitId={} success={} billId={} alreadyProcessed={} itemCount={}",
-                    visit.getVisitId(),
-                    response.isSuccess(),
-                    result != null ? result.getBillId() : null,
-                    result != null && result.isAlreadyProcessed(),
-                    items.size()
-            );
-        } catch (Exception e) {
-            log.warn("[진료→수납] 완료 알림 전송 실패 visitId={} message={}", visit.getVisitId(), e.getMessage());
-        }
+        // REST → Kafka 전환: 수납에는 진료완료 이벤트를 발행하고, 수납 서비스가 이를 구독하여 청구 생성 처리합니다.
+        billingClinicalCompletedEventPublisher.publish(request);
+        log.info("[진료→수납] 완료 이벤트 발행 visitId={} itemCount={}", visit.getVisitId(), items.size());
     }
 
     private List<BillingClinicalClaimItem> buildClaimLines(Long visitId) {

@@ -17,6 +17,8 @@ spring:
           destination: treatmentResult
         output-testExecution-out-0:
           destination: testExecution
+        output-clinicalCompleted-out-0:
+          destination: his.clinical.visit-completed
       kafka:
         binder:
           brokers: ${KAFKA_BROKERS:192.168.1.60}
@@ -34,6 +36,9 @@ billing:
   api:
     base-url: ${BILLING_API_BASE_URL:http://192.168.1.68:8081}
     enabled: ${BILLING_API_ENABLED:true}
+  kafka:
+    clinical-completed:
+      enabled: ${BILLING_KAFKA_CLINICAL_COMPLETED_ENABLED:true}
 
 hira:
   api:
