@@ -18,14 +18,10 @@ import com.example.hospitalClinical.documentation.dto.SoapRxRequest;
 import com.example.hospitalClinical.documentation.dto.SoapRxResponse;
 import com.example.hospitalClinical.documentation.entity.Diagnosis;
 import com.example.hospitalClinical.documentation.entity.Note;
-import com.example.hospitalClinical.documentation.entity.NoteAttachment;
-import com.example.hospitalClinical.documentation.entity.NoteHistory;
 import com.example.hospitalClinical.documentation.entity.SoapDx;
 import com.example.hospitalClinical.documentation.entity.SoapRx;
 import com.example.hospitalClinical.documentation.exception.NoteNotFoundException;
 import com.example.hospitalClinical.documentation.repository.DiagnosisRepo;
-import com.example.hospitalClinical.documentation.repository.NoteAttachmentRepo;
-import com.example.hospitalClinical.documentation.repository.NoteHistoryRepo;
 import com.example.hospitalClinical.documentation.repository.NoteRepo;
 import com.example.hospitalClinical.documentation.repository.SoapDxRepo;
 import com.example.hospitalClinical.documentation.repository.SoapRxRepo;
@@ -51,8 +47,6 @@ public class DocumentationServiceImpl implements DocumentationService {
 
     private final NoteRepo noteRepo;
     private final DiagnosisRepo diagnosisRepo;
-    private final NoteHistoryRepo noteHistoryRepo;
-    private final NoteAttachmentRepo noteAttachmentRepo;
     private final VisitRepo visitRepo;
     private final SoapDxRepo soapDxRepo;
     private final SoapRxRepo soapRxRepo;
@@ -94,20 +88,13 @@ public class DocumentationServiceImpl implements DocumentationService {
 
     @Override
     @Transactional
-    public Note updateNote(Long noteId, String chiefComplaint, String presentIllness, String assessment, String plan,
-                           String memo, String status) {
+    public Note updateNote(Long noteId, String chiefComplaint, String presentIllness, String memo, String status) {
         Note n = getNote(noteId);
         if (chiefComplaint != null) {
             n.setChiefComplaint(chiefComplaint);
         }
         if (presentIllness != null) {
             n.setPresentIllness(presentIllness);
-        }
-        if (assessment != null) {
-            n.setAssessment(assessment);
-        }
-        if (plan != null) {
-            n.setPlan(plan);
         }
         if (memo != null) {
             n.setMemo(memo);
@@ -136,43 +123,6 @@ public class DocumentationServiceImpl implements DocumentationService {
     @Override
     public List<Diagnosis> listDiagnosisByNoteId(Long noteId) {
         return diagnosisRepo.findByNoteIdOrderByCreatedAtDesc(noteId);
-    }
-
-    @Override
-    @Transactional
-    public NoteHistory createNoteHistory(Long noteId, String changeType, Long changedBy) {
-        return noteHistoryRepo.save(NoteHistory.create(noteId, changeType, changedBy));
-    }
-
-    @Override
-    public NoteHistory getNoteHistory(Long historyId) {
-        return noteHistoryRepo.findById(historyId)
-                .orElseThrow(() -> new IllegalArgumentException("NoteHistory not found: " + historyId));
-    }
-
-    @Override
-    public List<NoteHistory> listNoteHistoryByNoteId(Long noteId) {
-        return noteHistoryRepo.findByNoteIdOrderByChangedAtDesc(noteId);
-    }
-
-    @Override
-    @Transactional
-    public NoteAttachment createAttachment(Long noteId, String fileName, String filePath, String fileType) {
-        if (!noteRepo.existsById(noteId)) {
-            throw new NoteNotFoundException();
-        }
-        return noteAttachmentRepo.save(NoteAttachment.create(noteId, fileName, filePath, fileType));
-    }
-
-    @Override
-    public NoteAttachment getAttachment(Long attachmentId) {
-        return noteAttachmentRepo.findById(attachmentId)
-                .orElseThrow(() -> new IllegalArgumentException("NoteAttachment not found: " + attachmentId));
-    }
-
-    @Override
-    public List<NoteAttachment> listAttachmentByNoteId(Long noteId) {
-        return noteAttachmentRepo.findByNoteIdOrderByCreatedAtDesc(noteId);
     }
 
     @Override

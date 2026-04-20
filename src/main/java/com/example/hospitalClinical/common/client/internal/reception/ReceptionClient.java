@@ -86,10 +86,12 @@ public class ReceptionClient {
         }
     }
 
-    public List<ReceptionResponse> getReceptionQueue(Long departmentId, Long doctorId, String date) {
+    public List<ReceptionResponse> getReceptionQueue(Long departmentId, String doctorId, String date) {
         String url = UriComponentsBuilder.fromHttpUrl(baseUrl + "api/receptions")
                 .queryParamIfPresent("departmentId", departmentId != null ? java.util.Optional.of(departmentId) : java.util.Optional.empty())
-                .queryParamIfPresent("doctorId", doctorId != null ? java.util.Optional.of(doctorId) : java.util.Optional.empty())
+                .queryParamIfPresent(
+                        "doctorId",
+                        doctorId != null && !doctorId.isBlank() ? java.util.Optional.of(doctorId.trim()) : java.util.Optional.empty())
                 .queryParamIfPresent("dateFrom", date != null && !date.isBlank() ? java.util.Optional.of(date.trim()) : java.util.Optional.empty())
                 .queryParamIfPresent("dateTo", date != null && !date.isBlank() ? java.util.Optional.of(date.trim()) : java.util.Optional.empty())
                 .toUriString();

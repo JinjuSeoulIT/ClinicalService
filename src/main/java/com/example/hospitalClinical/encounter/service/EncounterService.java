@@ -1,5 +1,7 @@
 package com.example.hospitalClinical.encounter.service;
 
+import com.example.hospitalClinical.encounter.dto.ClinicalVitalAssessResponse;
+import com.example.hospitalClinical.encounter.dto.ClinicalVitalAssessSaveRequest;
 import com.example.hospitalClinical.encounter.dto.VisitCreateRequest;
 import com.example.hospitalClinical.encounter.dto.VisitStartRequest;
 import com.example.hospitalClinical.encounter.entity.Visit;
@@ -8,6 +10,7 @@ import com.example.hospitalClinical.encounter.entity.VisitStatusHistory;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface EncounterService {
 
@@ -35,4 +38,8 @@ public interface EncounterService {
     List<VisitQueue> listAllQueue();
 
     int autoCloseStaleVisits(LocalDateTime dayStart);
+
+    Optional<ClinicalVitalAssessResponse> getClinicalVitalAssessByVisitId(Long visitId);
+
+    ClinicalVitalAssessResponse upsertClinicalVitalAssess(Long visitId, ClinicalVitalAssessSaveRequest request);
 }

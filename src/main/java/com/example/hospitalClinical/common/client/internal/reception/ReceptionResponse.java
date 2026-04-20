@@ -14,7 +14,7 @@ public class ReceptionResponse {
     private String visitType;
     private String departmentId;
     private String departmentName;
-    private Long doctorId;
+    private String doctorId;
     private String doctorName;
     private Long reservationId;
     private LocalDateTime scheduledAt;
@@ -48,8 +48,8 @@ public class ReceptionResponse {
     public void setDepartmentId(String departmentId) { this.departmentId = departmentId; }
     public String getDepartmentName() { return departmentName; }
     public void setDepartmentName(String departmentName) { this.departmentName = departmentName; }
-    public Long getDoctorId() { return doctorId; }
-    public void setDoctorId(Long doctorId) { this.doctorId = doctorId; }
+    public String getDoctorId() { return doctorId; }
+    public void setDoctorId(String doctorId) { this.doctorId = doctorId; }
     public String getDoctorName() { return doctorName; }
     public void setDoctorName(String doctorName) { this.doctorName = doctorName; }
     public Long getReservationId() { return reservationId; }

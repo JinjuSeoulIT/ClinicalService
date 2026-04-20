@@ -26,8 +26,6 @@ public class ClinicalVitalAssessSaveRequest {
 
     private Integer spo2;
 
-    private String observation;
-
     private Integer painScore;
 
     private String consciousnessLevel;
@@ -49,8 +47,6 @@ public class ClinicalVitalAssessSaveRequest {
     private String allergy;
 
     private String currentMedication;
-
-    private String initialAssessment;
 
     private String status;
 }

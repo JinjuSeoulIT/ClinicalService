@@ -15,7 +15,7 @@ public class VisitOrderCreateRequest {
 
     private String orderType;
 
-    private Long doctorId;
+    private String doctorId;
 
     @NotEmpty
     @Valid

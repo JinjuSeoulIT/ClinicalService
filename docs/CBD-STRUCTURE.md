@@ -12,7 +12,7 @@ com.example.hospitalClinical
 │   ├── service (EncounterSessionManagementService, EncounterSessionManagementServiceImpl)
 │   ├── repository, entity, dto, exception
 ├── clinicalDocumentationManagement (진료기록관리)
-│   ├── controller (ClinicalNoteController, SoapSectionController, ClinicalNoteHistoryController)
+│   ├── controller (ClinicalNoteController, SoapSectionController)
 │   ├── service (ClinicalDocumentationManagementService, Impl)
 │   ├── repository, entity, dto, exception
 └── medicalOrderManagement       (의료오더관리)
@@ -39,7 +39,6 @@ com.example.hospitalClinical
 - **ENCOUNTER_SUMMARY** – 진료요약
 - **NOTE** – 진료기록
 - **SOAP_SECTION** – SOAP 구성 (CC, PI, A, P)
-- **NOTE_HISTORY** – 진료기록 이력
 - **MEDICAL_ORDER** – 의료오더 (LAB/PROCEDURE/PRESCRIPTION)
 - **ORDER_ITEM** – 오더 항목
 - **ORDER_RESULT** – 검사 결과

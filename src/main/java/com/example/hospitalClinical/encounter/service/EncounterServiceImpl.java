@@ -10,15 +10,20 @@ import com.example.hospitalClinical.common.client.internal.reception.ReceptionCl
 import com.example.hospitalClinical.common.client.internal.reception.ReceptionResponse;
 import com.example.hospitalClinical.common.client.internal.reception.ReceptionStatusUpdateRequest;
 import com.example.hospitalClinical.common.response.ApiResponse;
+import com.example.hospitalClinical.encounter.dto.ClinicalVitalAssessResponse;
+import com.example.hospitalClinical.encounter.dto.ClinicalVitalAssessSaveRequest;
 import com.example.hospitalClinical.encounter.dto.VisitCreateRequest;
 import com.example.hospitalClinical.encounter.dto.VisitStartRequest;
+import com.example.hospitalClinical.encounter.entity.ClinicalVitalAssess;
 import com.example.hospitalClinical.encounter.entity.Visit;
 import com.example.hospitalClinical.encounter.entity.VisitQueue;
 import com.example.hospitalClinical.encounter.entity.VisitStatusHistory;
 import com.example.hospitalClinical.encounter.exception.VisitNotFoundException;
+import com.example.hospitalClinical.encounter.repository.ClinicalVitalAssessRepo;
 import com.example.hospitalClinical.encounter.repository.VisitQueueRepo;
 import com.example.hospitalClinical.encounter.repository.VisitRepo;
 import com.example.hospitalClinical.encounter.repository.VisitStatusHistoryRepo;
+import com.example.hospitalClinical.order.dto.OrderItemResponse;
 import com.example.hospitalClinical.order.entity.Order;
 import com.example.hospitalClinical.order.entity.OrderItem;
 import com.example.hospitalClinical.order.service.OrderVisitService;
@@ -35,6 +40,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -46,6 +52,7 @@ public class EncounterServiceImpl implements EncounterService {
     private static final java.util.Set<String> STARTABLE_RECEPTION_STATUSES = java.util.Set.of("WAITING", "CALLED");
 
     private final VisitRepo visitRepo;
+    private final ClinicalVitalAssessRepo clinicalVitalAssessRepo;
     private final VisitStatusHistoryRepo visitStatusHistoryRepo;
     private final VisitQueueRepo visitQueueRepo;
     private final ReceptionClient receptionClient;
@@ -74,8 +81,8 @@ public class EncounterServiceImpl implements EncounterService {
             throw new BusinessException(ErrorCode.RECEPTION_INVALID_STATUS);
         }       //조건 안 맞으면 여기서 종료(DB 변경 없음)
         Long patientId = reception.getPatientId();
-        Long doctorId = reception.getDoctorId();
-        if (patientId == null || doctorId == null) {
+        String doctorId = reception.getDoctorId();
+        if (patientId == null || doctorId == null || doctorId.isBlank()) {
             throw new BusinessException(ErrorCode.RECEPTION_API_ERROR, "접수 정보에 환자/의사 정보가 없습니다.");
         }   //추가 검증 환자/의사
         // 중복 체크 (DB)//
@@ -285,6 +292,28 @@ public class EncounterServiceImpl implements EncounterService {
     }
 
     @Override
+    public Optional<ClinicalVitalAssessResponse> getClinicalVitalAssessByVisitId(Long visitId) {
+        visitRepo.findById(visitId).orElseThrow(VisitNotFoundException::new);
+        return clinicalVitalAssessRepo.findByVisitId(visitId).map(ClinicalVitalAssessResponse::from);
+    }
+
+    @Override
+    @Transactional
+    public ClinicalVitalAssessResponse upsertClinicalVitalAssess(Long visitId, ClinicalVitalAssessSaveRequest request) {
+        Visit visit = visitRepo.findById(visitId).orElseThrow(VisitNotFoundException::new);
+        if (request.getVisitId() != null && !request.getVisitId().equals(visitId)) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "visitId가 경로와 일치하지 않습니다.");
+        }
+        ClinicalVitalAssess entity =
+                clinicalVitalAssessRepo
+                        .findByVisitId(visitId)
+                        .orElseGet(() -> ClinicalVitalAssess.createNew(visitId, visit.getReceptionId()));
+        entity.applySave(request);
+        ClinicalVitalAssess saved = clinicalVitalAssessRepo.save(entity);
+        return ClinicalVitalAssessResponse.from(saved);
+    }
+
+    @Override
     public int autoCloseStaleVisits(LocalDateTime dayStart) {
         List<Visit> list = visitRepo.findStaleInProgress(Visit.IN_PROGRESS, dayStart);
         int n = 0;
@@ -330,11 +359,11 @@ public class EncounterServiceImpl implements EncounterService {
         return true;
     }
 
-    private void assertNoConcurrentVisit(Long doctorId, Long receptionId, Long exceptVisitId) {
-        if (doctorId == null || receptionId == null) {
+    private void assertNoConcurrentVisit(String doctorId, Long receptionId, Long exceptVisitId) {
+        if (doctorId == null || doctorId.isBlank() || receptionId == null) {
             return;
         }
-        for (Visit ov : visitRepo.findByVisitStatusAndDoctorId(Visit.IN_PROGRESS, doctorId)) {
+        for (Visit ov : visitRepo.findByVisitStatusAndDoctorId(Visit.IN_PROGRESS, doctorId.trim())) {
             if (exceptVisitId != null && exceptVisitId.equals(ov.getVisitId())) {
                 continue;
             }
@@ -388,7 +417,9 @@ public class EncounterServiceImpl implements EncounterService {
                 if (sourceId == null) {
                     continue;
                 }
-                String name = line.getItemDetailCode() != null ? line.getItemDetailCode() : "";
+                String name =
+                        OrderItemResponse.stripEncodedOrderItemSuffix(
+                                line.getItemDetailCode() != null ? line.getItemDetailCode() : "");
                 String code = line.getItemCode() != null ? line.getItemCode() : "";
                 out.add(
                         BillingClinicalClaimItem.builder()

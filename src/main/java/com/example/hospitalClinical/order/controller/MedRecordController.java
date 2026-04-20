@@ -3,8 +3,6 @@ package com.example.hospitalClinical.order.controller;
 import com.example.hospitalClinical.common.response.ApiResponse;
 import com.example.hospitalClinical.order.dto.MedicationRecordCreateRequest;
 import com.example.hospitalClinical.order.dto.MedicationRecordResponse;
-import com.example.hospitalClinical.order.dto.TreatmentResultCreateRequest;
-import com.example.hospitalClinical.order.dto.TreatmentResultResponse;
 import com.example.hospitalClinical.order.service.OrderVisitService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,42 +24,25 @@ import java.util.List;
 @RestController
 @RequiredArgsConstructor
 @Slf4j
-@RequestMapping("/api/visits/{visitId}")
-public class VisitMedicationTreatmentController {
+@RequestMapping("/api/visits/{visitId}/medication-records")
+public class MedRecordController {
 
     private final OrderVisitService orderVisitService;
 
-    @GetMapping("/medication-records")
-    public ResponseEntity<ApiResponse<List<MedicationRecordResponse>>> listMedicationRecords(
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<MedicationRecordResponse>>> list(
             @PathVariable("visitId") Long visitId) {
         log.info("[GET] /api/visits/{}/medication-records", visitId);
         List<MedicationRecordResponse> list = orderVisitService.listMedicationRecordsByVisit(visitId);
         return ResponseEntity.ok(new ApiResponse<>(true, "투약기록 목록 조회 성공", list));
     }
 
-    @PostMapping("/medication-records")
-    public ResponseEntity<ApiResponse<MedicationRecordResponse>> createMedicationRecord(
+    @PostMapping
+    public ResponseEntity<ApiResponse<MedicationRecordResponse>> create(
             @PathVariable("visitId") Long visitId,
             @RequestBody @Valid MedicationRecordCreateRequest request) {
         MedicationRecordResponse result = orderVisitService.createMedicationRecord(visitId, request);
         log.info("[POST] /api/visits/{}/medication-records medicationId={}", visitId, result.getMedicationId());
         return ResponseEntity.status(201).body(new ApiResponse<>(true, "투약기록 등록 성공", result));
-    }
-
-    @GetMapping("/treatment-results")
-    public ResponseEntity<ApiResponse<List<TreatmentResultResponse>>> listTreatmentResults(
-            @PathVariable("visitId") Long visitId) {
-        log.info("[GET] /api/visits/{}/treatment-results", visitId);
-        List<TreatmentResultResponse> list = orderVisitService.listTreatmentResultsByVisit(visitId);
-        return ResponseEntity.ok(new ApiResponse<>(true, "처치결과 목록 조회 성공", list));
-    }
-
-    @PostMapping("/treatment-results")
-    public ResponseEntity<ApiResponse<TreatmentResultResponse>> createTreatmentResult(
-            @PathVariable("visitId") Long visitId,
-            @RequestBody @Valid TreatmentResultCreateRequest request) {
-        TreatmentResultResponse result = orderVisitService.createTreatmentResult(visitId, request);
-        log.info("[POST] /api/visits/{}/treatment-results procedureResultId={}", visitId, result.getProcedureResultId());
-        return ResponseEntity.status(201).body(new ApiResponse<>(true, "처치결과 등록 성공", result));
     }
 }

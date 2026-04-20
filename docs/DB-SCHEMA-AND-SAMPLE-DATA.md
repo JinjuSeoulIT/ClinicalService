@@ -4,7 +4,7 @@
 
 - **스키마**: `HOSPITAL` (Oracle)
 - **애플리케이션**: `application.yml`에서 `default_schema: HOSPITAL` 로 이 스키마를 참조합니다.
-- **테이블**: 아래 10개 테이블이 모두 **HOSPITAL** 스키마 안에 있습니다.
+- **테이블**: 아래 8개 테이블이 모두 **HOSPITAL** 스키마 안에 있습니다.
 
 | 용도 | 테이블명 | PK 컬럼 | 비고 |
 |------|----------|---------|------|
@@ -13,8 +13,6 @@
 | 대기열 | CLINICAL_VISIT_QUEUE | QUEUE_ID | VISIT_ID FK |
 | 진료기록 | NOTE | NOTE_ID | VISIT_ID FK |
 | 진단 | CLINICAL_DIAGNOSIS | DIAGNOSIS_ID | NOTE_ID FK |
-| 진료기록 이력 | NOTE_HISTORY | HISTORY_ID | NOTE_ID FK |
-| 진료기록 첨부 | NOTE_ATTACHMENT | ATTACHMENT_ID | NOTE_ID FK |
 | 오더 | CLINICAL_ORDER | ORDER_ID | VISIT_ID FK |
 | 오더 항목 | CLINICAL_ORDER_ITEM | ORDER_ITEM_ID | ORDER_ID FK |
 | 오더 결과 | CLINICAL_ORDER_RESULT | RESULT_ID | ORDER_ITEM_ID FK |

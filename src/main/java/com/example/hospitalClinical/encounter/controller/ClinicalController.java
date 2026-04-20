@@ -31,7 +31,7 @@ public class ClinicalController {
     @GetMapping("/reception-queue")
     public ResponseEntity<ApiResponse<List<ReceptionResponse>>> receptionQueue(
             @RequestParam(value = "departmentId", required = false) Long departmentId,
-            @RequestParam(value = "doctorId", required = false) Long doctorId,
+            @RequestParam(value = "doctorId", required = false) String doctorId,
             @RequestParam(value = "date", required = false) String date) {
         log.info("[GET] /api/clinical/reception-queue - 접수 대기열 조회");
         List<ReceptionResponse> list = receptionClient.getReceptionQueue(departmentId, doctorId, date);

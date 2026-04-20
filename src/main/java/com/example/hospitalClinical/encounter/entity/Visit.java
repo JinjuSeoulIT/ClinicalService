@@ -30,8 +30,8 @@ public class Visit {
     @Column(name = "PATIENT_ID", nullable = false)
     private Long patientId;
 
-    @Column(name = "DOCTOR_ID", nullable = false)
-    private Long doctorId;
+    @Column(name = "DOCTOR_ID", nullable = false, length = 30)
+    private String doctorId;
 
     @Column(name = "RECEPTION_ID", nullable = false)
     private Long receptionId;
@@ -65,13 +65,13 @@ public class Visit {
         return isTerminalStatus(this.visitStatus);
     }
 
-    public static Visit create(Long patientId, Long doctorId, Long receptionId) {
-        if (patientId == null || doctorId == null || receptionId == null) {
+    public static Visit create(Long patientId, String doctorId, Long receptionId) {
+        if (patientId == null || doctorId == null || doctorId.isBlank() || receptionId == null) {
             throw new IllegalArgumentException("환자/의사/접수 정보는 필수입니다.");
         }
         Visit v = new Visit();
         v.patientId = patientId;
-        v.doctorId = doctorId;
+        v.doctorId = doctorId.trim();
         v.receptionId = receptionId;
         v.visitStatus = WAITING;
         v.startTime = null;
@@ -148,7 +148,7 @@ public class Visit {
 
     public Long getVisitId() { return visitId; }
     public Long getPatientId() { return patientId; }
-    public Long getDoctorId() { return doctorId; }
+    public String getDoctorId() { return doctorId; }
     public Long getReceptionId() { return receptionId; }
     public String getVisitStatus() { return visitStatus; }
     public LocalDateTime getStartTime() { return startTime; }

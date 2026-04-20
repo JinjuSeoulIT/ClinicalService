@@ -18,12 +18,11 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-
 @RestController
 @RequiredArgsConstructor
 @Slf4j
 @RequestMapping("/api/orders")
-public class DeprecatedRootOrdersController {
+public class LegacyOrdersController {
 
     private final OrderVisitService orderVisitService;
 

@@ -25,8 +25,8 @@ public class Order {
     @Column(name = "ORDER_STATUS", length = 20)
     private String orderStatus;
 
-    @Column(name = "DOCTOR_ID")
-    private Long doctorId;
+    @Column(name = "DOCTOR_ID", length = 30)
+    private String doctorId;
 
     @Column(name = "ORDER_DATE")
     private LocalDateTime orderDate;
@@ -45,7 +45,7 @@ public class Order {
 
     protected Order() {}
 
-    public static Order create(Long visitId, OrderType orderType, String orderStatus, Long doctorId) {
+    public static Order create(Long visitId, OrderType orderType, String orderStatus, String doctorId) {
         Order o = new Order();
         o.visitId = visitId;
         o.orderType = orderType;
@@ -89,7 +89,7 @@ public class Order {
     public Long getVisitId() { return visitId; }
     public OrderType getOrderType() { return orderType; }
     public String getOrderStatus() { return orderStatus; }
-    public Long getDoctorId() { return doctorId; }
+    public String getDoctorId() { return doctorId; }
     public LocalDateTime getOrderDate() { return orderDate; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

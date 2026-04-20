@@ -9,8 +9,6 @@
 | VisitQueue | CLINICAL_VISIT_QUEUE |
 | Note | NOTE |
 | Diagnosis | CLINICAL_DIAGNOSIS |
-| NoteHistory | NOTE_HISTORY |
-| NoteAttachment | NOTE_ATTACHMENT |
 | Order | CLINICAL_ORDER |
 | OrderItem | CLINICAL_ORDER_ITEM |
 | OrderResult | CLINICAL_ORDER_RESULT |
@@ -77,30 +75,11 @@
 | DESCRIPTION | VARCHAR(1000) | Y | 설명 |
 | CREATED_AT | TIMESTAMP | Y | 생성 시각 |
 
-### 6) NOTE_HISTORY
-| 컬럼명 | 타입 | nullable | 설명 |
-|--------|------|----------|------|
-| HISTORY_ID | NUMBER(19) / BIGINT | PK | 이력 ID (시퀀스: **CL_NOTE_HIST_SEQ**) |
-| NOTE_ID | NUMBER(19) / BIGINT | N | NOTE FK |
-| CHANGE_TYPE | VARCHAR(20) | Y | 변경 유형 |
-| CHANGED_BY | NUMBER(19) / BIGINT | Y | 변경자 ID |
-| CHANGED_AT | TIMESTAMP | Y | 변경 시각 |
-
-### 7) NOTE_ATTACHMENT
-| 컬럼명 | 타입 | nullable | 설명 |
-|--------|------|----------|------|
-| ATTACHMENT_ID | NUMBER(19) / BIGINT | PK | 첨부 ID (시퀀스: **CL_NOTE_ATTACH_SEQ**) |
-| NOTE_ID | NUMBER(19) / BIGINT | N | NOTE FK |
-| FILE_NAME | VARCHAR(255) | Y | 파일명 |
-| FILE_PATH | VARCHAR(1000) | Y | 파일 경로 |
-| FILE_TYPE | VARCHAR(50) | Y | 파일 타입 |
-| CREATED_AT | TIMESTAMP | Y | 생성 시각 |
-
 ---
 
 ## 3. order (검사/처치/처방)
 
-### 8) CLINICAL_ORDER
+### 6) CLINICAL_ORDER
 | 컬럼명 | 타입 | nullable | 설명 |
 |--------|------|----------|------|
 | ORDER_ID | NUMBER(19) / BIGINT | PK | 오더 ID (시퀀스: **CL_ORDER_SEQ**) |
@@ -112,7 +91,7 @@
 | CREATED_AT | TIMESTAMP | Y | 생성 시각 |
 | UPDATED_AT | TIMESTAMP | Y | 수정 시각 |
 
-### 9) CLINICAL_ORDER_ITEM
+### 7) CLINICAL_ORDER_ITEM
 | 컬럼명 | 타입 | nullable | 설명 |
 |--------|------|----------|------|
 | ORDER_ITEM_ID | NUMBER(19) / BIGINT | PK | 항목 ID (시퀀스: **CL_ORDER_ITEM_SEQ**) |
@@ -123,7 +102,7 @@
 | DURATION | VARCHAR(100) | Y | 투여 기간 |
 | CREATED_AT | TIMESTAMP | Y | 생성 시각 |
 
-### 10) CLINICAL_ORDER_RESULT
+### 8) CLINICAL_ORDER_RESULT
 | 컬럼명 | 타입 | nullable | 설명 |
 |--------|------|----------|------|
 | RESULT_ID | NUMBER(19) / BIGINT | PK | 결과 ID (시퀀스: **CL_ORDER_RESULT_SEQ**) |
@@ -140,8 +119,8 @@
 | 구분 | 이름 |
 |------|------|
 | **스키마** | HOSPITAL (Oracle: CREATE SCHEMA 또는 USER, H2: CREATE SCHEMA HOSPITAL) |
-| **시퀀스(10개, 30자 이내)** | CL_VISIT_SEQ, CL_VISIT_STATUS_HIST_SEQ, CL_VISIT_QUEUE_SEQ, CL_NOTE_SEQ, CL_DIAGNOSIS_SEQ, CL_NOTE_HIST_SEQ, CL_NOTE_ATTACH_SEQ, CL_ORDER_SEQ, CL_ORDER_ITEM_SEQ, CL_ORDER_RESULT_SEQ |
-| **테이블(10개)** | CLINICAL_VISIT, CLINICAL_VISIT_STATUS_HISTORY, CLINICAL_VISIT_QUEUE, NOTE, CLINICAL_DIAGNOSIS, NOTE_HISTORY, NOTE_ATTACHMENT, CLINICAL_ORDER, CLINICAL_ORDER_ITEM, CLINICAL_ORDER_RESULT |
+| **시퀀스(8개, 30자 이내)** | CL_VISIT_SEQ, CL_VISIT_STATUS_HIST_SEQ, CL_VISIT_QUEUE_SEQ, CL_NOTE_SEQ, CL_DIAGNOSIS_SEQ, CL_ORDER_SEQ, CL_ORDER_ITEM_SEQ, CL_ORDER_RESULT_SEQ |
+| **테이블(8개)** | CLINICAL_VISIT, CLINICAL_VISIT_STATUS_HISTORY, CLINICAL_VISIT_QUEUE, NOTE, CLINICAL_DIAGNOSIS, CLINICAL_ORDER, CLINICAL_ORDER_ITEM, CLINICAL_ORDER_RESULT |
 
 ---
 

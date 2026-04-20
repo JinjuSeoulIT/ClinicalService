@@ -40,8 +40,7 @@ hospitalClinical (com.example.hospitalClinical)
 ├── clinicalDocumentationManagement   진료기록관리
 │   ├── controller
 │   │   ├── ClinicalNoteController.java
-│   │   ├── SoapSectionController.java
-│   │   └── ClinicalNoteHistoryController.java
+│   │   └── SoapSectionController.java
 │   ├── service
 │   │   ├── ClinicalDocumentationManagementService.java
 │   │   └── ClinicalDocumentationManagementServiceImpl.java
@@ -49,16 +48,13 @@ hospitalClinical (com.example.hospitalClinical)
 │   │   ├── ClinicalNoteCreateRequest.java
 │   │   ├── ClinicalNoteUpdateRequest.java
 │   │   ├── ClinicalNoteResponse.java
-│   │   ├── SoapSectionResponse.java
-│   │   └── ClinicalNoteHistoryResponse.java
+│   │   └── SoapSectionResponse.java
 │   ├── entity
 │   │   ├── ClinicalNote.java
-│   │   ├── SoapSection.java
-│   │   └── ClinicalNoteHistory.java
+│   │   └── SoapSection.java
 │   ├── repository
 │   │   ├── ClinicalNoteRepository.java
-│   │   ├── SoapSectionRepository.java
-│   │   └── ClinicalNoteHistoryRepository.java
+│   │   └── SoapSectionRepository.java
 │   └── exception
 │       └── ClinicalNoteNotFoundException.java
 │

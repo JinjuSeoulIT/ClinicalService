@@ -8,7 +8,7 @@ public class VisitStartResponse {
 
     private Long visitId;
     private Long patientId;
-    private Long doctorId;
+    private String doctorId;
     private Long receptionId;
     private String visitStatus;
     private LocalDateTime startTime;
@@ -32,7 +32,7 @@ public class VisitStartResponse {
 
     public Long getVisitId() { return visitId; }
     public Long getPatientId() { return patientId; }
-    public Long getDoctorId() { return doctorId; }
+    public String getDoctorId() { return doctorId; }
     public Long getReceptionId() { return receptionId; }
     public String getVisitStatus() { return visitStatus; }
     public LocalDateTime getStartTime() { return startTime; }

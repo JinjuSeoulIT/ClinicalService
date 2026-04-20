@@ -8,7 +8,7 @@ import java.util.List;
 @Data
 public class OrderCreateRequest {
     private String orderType;
-    private Long doctorId;
+    private String doctorId;
 
     @Valid
     private List<OrderItemCreateRequest> items;

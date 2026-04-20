@@ -21,7 +21,6 @@ public class ClinicalVitalAssessResponse {
     private Integer respiration;
     private BigDecimal temperature;
     private Integer spo2;
-    private String observation;
     private Integer painScore;
     private String consciousnessLevel;
     private String heightCm;
@@ -33,7 +32,6 @@ public class ClinicalVitalAssessResponse {
     private String familyHistory;
     private String allergy;
     private String currentMedication;
-    private String initialAssessment;
     private String status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -50,7 +48,6 @@ public class ClinicalVitalAssessResponse {
         r.respiration = e.getRespiration();
         r.temperature = e.getTemperature();
         r.spo2 = e.getSpo2();
-        r.observation = e.getObservation();
         r.painScore = e.getPainScore();
         r.consciousnessLevel = e.getConsciousnessLevel();
         r.heightCm = e.getHeightCm();
@@ -62,7 +59,6 @@ public class ClinicalVitalAssessResponse {
         r.familyHistory = e.getFamilyHistory();
         r.allergy = e.getAllergy();
         r.currentMedication = e.getCurrentMedication();
-        r.initialAssessment = e.getInitialAssessment();
         r.status = e.getStatus();
         r.createdAt = e.getCreatedAt();
         r.updatedAt = e.getUpdatedAt();

@@ -55,8 +55,6 @@ public class NoteController {
                 noteId,
                 body.get("chiefComplaint"),
                 body.get("presentIllness"),
-                body.get("assessment"),
-                body.get("plan"),
                 body.get("memo"),
                 body.get("status")
         ));

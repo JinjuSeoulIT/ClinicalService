@@ -22,12 +22,6 @@ public class Note {
     @Column(name = "PRESENT_ILLNESS", length = 4000)
     private String presentIllness;
 
-    @Column(name = "ASSESSMENT", length = 4000)
-    private String assessment;
-
-    @Column(name = "PLAN", length = 4000)
-    private String plan;
-
     @Column(name = "MEMO", length = 2000)
     private String memo;
 
@@ -63,8 +57,6 @@ public class Note {
 
     public void setChiefComplaint(String chiefComplaint) { this.chiefComplaint = chiefComplaint; }
     public void setPresentIllness(String presentIllness) { this.presentIllness = presentIllness; }
-    public void setAssessment(String assessment) { this.assessment = assessment; }
-    public void setPlan(String plan) { this.plan = plan; }
     public void setMemo(String memo) { this.memo = memo; }
     public void setStatus(String status) { this.status = status; }
 
@@ -72,8 +64,6 @@ public class Note {
     public Long getVisitId() { return visitId; }
     public String getChiefComplaint() { return chiefComplaint; }
     public String getPresentIllness() { return presentIllness; }
-    public String getAssessment() { return assessment; }
-    public String getPlan() { return plan; }
     public String getMemo() { return memo; }
     public String getStatus() { return status; }
     public LocalDateTime getCreatedAt() { return createdAt; }

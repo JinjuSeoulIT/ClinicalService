@@ -57,9 +57,6 @@ public class ClinicalVitalAssess {
     @Column(name = "SPO2")
     private Integer spo2;
 
-    @Column(name = "OBSERVATION", length = 1000)
-    private String observation;
-
     @Column(name = "PAIN_SCORE")
     private Integer painScore;
 
@@ -92,9 +89,6 @@ public class ClinicalVitalAssess {
 
     @Column(name = "CURRENT_MEDICATION", length = 500)
     private String currentMedication;
-
-    @Column(name = "INITIAL_ASSESSMENT", length = 500)
-    private String initialAssessment;
 
     @Column(name = "STATUS", length = 20)
     private String status;
@@ -131,7 +125,6 @@ public class ClinicalVitalAssess {
         if (req.getSpo2() != null) {
             this.spo2 = req.getSpo2();
         }
-        this.observation = trimToNull(req.getObservation());
         if (req.getPainScore() != null) {
             this.painScore = req.getPainScore();
         }
@@ -157,7 +150,6 @@ public class ClinicalVitalAssess {
         this.familyHistory = trimToNull(req.getFamilyHistory());
         this.allergy = trimToNull(req.getAllergy());
         this.currentMedication = trimToNull(req.getCurrentMedication());
-        this.initialAssessment = trimToNull(req.getInitialAssessment());
         if (req.getStatus() != null && !req.getStatus().isBlank()) {
             this.status = req.getStatus().trim();
         } else if (this.status == null || this.status.isBlank()) {
@@ -235,10 +227,6 @@ public class ClinicalVitalAssess {
         return spo2;
     }
 
-    public String getObservation() {
-        return observation;
-    }
-
     public Integer getPainScore() {
         return painScore;
     }
@@ -281,10 +269,6 @@ public class ClinicalVitalAssess {
 
     public String getCurrentMedication() {
         return currentMedication;
-    }
-
-    public String getInitialAssessment() {
-        return initialAssessment;
     }
 
     public String getStatus() {

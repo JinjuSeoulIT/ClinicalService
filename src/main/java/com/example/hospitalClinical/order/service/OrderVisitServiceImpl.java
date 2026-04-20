@@ -286,7 +286,7 @@ public class OrderVisitServiceImpl implements OrderVisitService {
         if (request.getItemDetailCode() != null) {
             item.setItemDetailCode(request.getItemDetailCode().trim());
         } else if (request.getItemName() != null) {
-            item.setItemDetailCode(request.getItemName().trim());
+            item.setItemDetailCode(OrderItemResponse.stripEncodedOrderItemSuffix(request.getItemName().trim()));
         }
         return orderItemRepo.save(item);
     }
@@ -546,7 +546,21 @@ public class OrderVisitServiceImpl implements OrderVisitService {
         } else if (!items.isEmpty()) {
             validateOrderItems(orderType, items);
         }
-        Order o = Order.create(visitId, orderType, "REQUESTED", request.getDoctorId());
+        String doctorId = trimToNull(request.getDoctorId());
+        if (doctorId == null) {
+            doctorId = trimToNull(visit.getDoctorId());
+        }
+        if (doctorId == null && visit.getReceptionId() != null) {
+            try {
+                ReceptionResponse rec = receptionClient.getReception(visit.getReceptionId());
+                if (rec != null) {
+                    doctorId = trimToNull(rec.getDoctorId());
+                }
+            } catch (Exception e) {
+                log.warn("reception doctorId fallback failed visitId={} receptionId={}", visitId, visit.getReceptionId(), e);
+            }
+        }
+        Order o = Order.create(visitId, orderType, "REQUESTED", doctorId);
         for (OrderItemCreateRequest req : items) {
             o.addItem(toOrderItem(orderType, req, patientId, np.patientName(), np.departmentName()));
         }
@@ -637,7 +651,10 @@ public class OrderVisitServiceImpl implements OrderVisitService {
         }
         if (orderType.isPrescription()) {
             return OrderItem.createPrescriptionLine(
-                    req.getItemName().trim(), patientId, patientName, departmentName);
+                    OrderItemResponse.stripEncodedOrderItemSuffix(req.getItemName().trim()),
+                    patientId,
+                    patientName,
+                    departmentName);
         }
         if (orderType.isTestCategory()) {
             String groupCode = labGroupCodeForOrderType(orderType);
@@ -721,7 +738,7 @@ public class OrderVisitServiceImpl implements OrderVisitService {
         r.setOrderItemId(sid);
         r.setOrderId(sid);
         r.setItemCode(null);
-        String nm = rx.getMedicationName();
+        String nm = OrderItemResponse.stripEncodedOrderItemSuffix(rx.getMedicationName());
         r.setItemDetailCode(nm);
         r.setItemName(nm);
         r.setDosage(null);

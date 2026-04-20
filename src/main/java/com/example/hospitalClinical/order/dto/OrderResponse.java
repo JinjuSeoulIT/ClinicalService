@@ -17,7 +17,7 @@ public class OrderResponse {
     private Long visitId;
     private String orderType;
     private String orderStatus;
-    private Long doctorId;
+    private String doctorId;
     private LocalDateTime orderDate;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

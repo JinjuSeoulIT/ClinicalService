@@ -21,9 +21,9 @@ flowchart TB
 
         subgraph CDM["clinicalDocumentationManagement (진료기록관리)"]
             direction TB
-            CDM_ctrl["controller<br/>ClinicalNote, SoapSection, ClinicalNoteHistory"]
+            CDM_ctrl["controller<br/>ClinicalNote, SoapSection"]
             CDM_svc["service<br/>ClinicalDocumentationManagementService + Impl"]
-            CDM_ent["entity: ClinicalNote, SoapSection, ClinicalNoteHistory"]
+            CDM_ent["entity: ClinicalNote, SoapSection"]
             CDM_rep["repository, dto, exception"]
         end
 
@@ -71,7 +71,7 @@ flowchart LR
 
         subgraph Layer4["Entity / DB"]
             E1[(Visit, EncounterStatus, EncounterSummary)]
-            E2[(ClinicalNote, SoapSection, ClinicalNoteHistory)]
+            E2[(ClinicalNote, SoapSection)]
             E3[(MedicalOrder, OrderItem, OrderResult)]
         end
     end
@@ -93,7 +93,7 @@ flowchart LR
 | 모듈 | Controller (3개) | Service (1쌍) | Entity (3개) |
 |------|------------------|----------------|--------------|
 | encounterSessionManagement | Visit, EncounterStatus, EncounterSummary | EncounterSessionManagementService | Visit, EncounterStatus, EncounterSummary |
-| clinicalDocumentationManagement | ClinicalNote, SoapSection, ClinicalNoteHistory | ClinicalDocumentationManagementService | ClinicalNote, SoapSection, ClinicalNoteHistory |
+| clinicalDocumentationManagement | ClinicalNote, SoapSection | ClinicalDocumentationManagementService | ClinicalNote, SoapSection |
 | medicalOrderManagement | MedicalOrder, OrderItem, OrderResult | MedicalOrderManagementService | MedicalOrder, OrderItem, OrderResult |
 
 *clinicalDocumentationManagement는 entity/repository 일부를 clinical.documentation 패키지와 공유할 수 있음.*

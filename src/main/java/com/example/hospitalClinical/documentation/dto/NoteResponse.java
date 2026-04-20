@@ -15,8 +15,6 @@ public class NoteResponse {
     private Long visitId;
     private String chiefComplaint;
     private String presentIllness;
-    private String assessment;
-    private String plan;
     private String memo;
     private String status;
     private LocalDateTime createdAt;
@@ -25,7 +23,7 @@ public class NoteResponse {
     public static NoteResponse from(Note n) {
         return new NoteResponse(
                 n.getNoteId(), n.getVisitId(), n.getChiefComplaint(), n.getPresentIllness(),
-                n.getAssessment(), n.getPlan(), n.getMemo(), n.getStatus(),
+                n.getMemo(), n.getStatus(),
                 n.getCreatedAt(), n.getUpdatedAt()
         );
     }
