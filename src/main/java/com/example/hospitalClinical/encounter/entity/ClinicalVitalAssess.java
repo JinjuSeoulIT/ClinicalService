@@ -116,8 +116,11 @@ public class ClinicalVitalAssess {
         if (req.getReceptionId() != null) {
             this.receptionId = req.getReceptionId();
         }
-        if (this.recordedAt == null) {
-            this.recordedAt = req.getRecordedAt() != null ? req.getRecordedAt() : LocalDateTime.now();
+        LocalDateTime reqRecorded = req.getRecordedAt();
+        if (reqRecorded != null) {
+            this.recordedAt = reqRecorded;
+        } else if (this.recordedAt == null) {
+            this.recordedAt = LocalDateTime.now();
         }
         this.systolicBp = req.getSystolicBp();
         this.diastolicBp = req.getDiastolicBp();
@@ -175,9 +178,6 @@ public class ClinicalVitalAssess {
         }
         if (updatedAt == null) {
             updatedAt = now;
-        }
-        if (recordedAt == null) {
-            recordedAt = now;
         }
         if (status == null || status.isBlank()) {
             status = "ACTIVE";
