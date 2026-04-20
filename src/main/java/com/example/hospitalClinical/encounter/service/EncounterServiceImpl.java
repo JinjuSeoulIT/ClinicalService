@@ -11,14 +11,17 @@ import com.example.hospitalClinical.common.client.internal.reception.ReceptionSt
 import com.example.hospitalClinical.common.response.ApiResponse;
 import com.example.hospitalClinical.encounter.dto.ClinicalVitalAssessResponse;
 import com.example.hospitalClinical.encounter.dto.ClinicalVitalAssessSaveRequest;
+import com.example.hospitalClinical.encounter.dto.VitalAssessSaveHistoryLine;
 import com.example.hospitalClinical.encounter.dto.VisitCreateRequest;
 import com.example.hospitalClinical.encounter.dto.VisitStartRequest;
 import com.example.hospitalClinical.encounter.entity.ClinicalVitalAssess;
+import com.example.hospitalClinical.encounter.entity.ClinicalVitalAssessSaveAudit;
 import com.example.hospitalClinical.encounter.entity.Visit;
 import com.example.hospitalClinical.encounter.entity.VisitQueue;
 import com.example.hospitalClinical.encounter.entity.VisitStatusHistory;
 import com.example.hospitalClinical.encounter.exception.VisitNotFoundException;
 import com.example.hospitalClinical.encounter.repository.ClinicalVitalAssessRepo;
+import com.example.hospitalClinical.encounter.repository.ClinicalVitalAssessSaveAuditRepo;
 import com.example.hospitalClinical.encounter.repository.VisitQueueRepo;
 import com.example.hospitalClinical.encounter.repository.VisitRepo;
 import com.example.hospitalClinical.encounter.repository.VisitStatusHistoryRepo;
@@ -52,6 +55,7 @@ public class EncounterServiceImpl implements EncounterService {
 
     private final VisitRepo visitRepo;
     private final ClinicalVitalAssessRepo clinicalVitalAssessRepo;
+    private final ClinicalVitalAssessSaveAuditRepo clinicalVitalAssessSaveAuditRepo;
     private final VisitStatusHistoryRepo visitStatusHistoryRepo;
     private final VisitQueueRepo visitQueueRepo;
     private final ReceptionClient receptionClient;
@@ -293,7 +297,12 @@ public class EncounterServiceImpl implements EncounterService {
     @Override
     public Optional<ClinicalVitalAssessResponse> getClinicalVitalAssessByVisitId(Long visitId) {
         visitRepo.findById(visitId).orElseThrow(VisitNotFoundException::new);
-        return clinicalVitalAssessRepo.findByVisitId(visitId).map(ClinicalVitalAssessResponse::from);
+        return clinicalVitalAssessRepo
+                .findByVisitId(visitId)
+                .map(
+                        e ->
+                                ClinicalVitalAssessResponse.from(
+                                        e, mapSaveAuditsToLines(clinicalVitalAssessSaveAuditRepo.findByVisitIdOrderBySaveAuditIdAsc(visitId))));
     }
 
     @Override
@@ -309,7 +318,21 @@ public class EncounterServiceImpl implements EncounterService {
                         .orElseGet(() -> ClinicalVitalAssess.createNew(visitId, visit.getReceptionId()));
         entity.applySave(request);
         ClinicalVitalAssess saved = clinicalVitalAssessRepo.save(entity);
-        return ClinicalVitalAssessResponse.from(saved);
+        clinicalVitalAssessSaveAuditRepo.save(
+                ClinicalVitalAssessSaveAudit.create(visitId, saved.getRecordedAt()));
+        List<VitalAssessSaveHistoryLine> chartLines =
+                mapSaveAuditsToLines(clinicalVitalAssessSaveAuditRepo.findByVisitIdOrderBySaveAuditIdAsc(visitId));
+        return ClinicalVitalAssessResponse.from(saved, chartLines);
+    }
+
+    private static List<VitalAssessSaveHistoryLine> mapSaveAuditsToLines(List<ClinicalVitalAssessSaveAudit> audits) {
+        return audits.stream()
+                .map(
+                        a ->
+                                new VitalAssessSaveHistoryLine(
+                                        "진료 · 차트 저장",
+                                        a.getRecordedAt() != null ? a.getRecordedAt() : a.getSavedAt()))
+                .collect(Collectors.toList());
     }
 
     @Override

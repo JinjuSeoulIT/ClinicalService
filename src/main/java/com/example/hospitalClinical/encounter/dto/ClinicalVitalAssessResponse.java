@@ -6,6 +6,8 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -35,8 +37,13 @@ public class ClinicalVitalAssessResponse {
     private String status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private List<VitalAssessSaveHistoryLine> chartSaveHistory = new ArrayList<>();
 
     public static ClinicalVitalAssessResponse from(ClinicalVitalAssess e) {
+        return from(e, List.of());
+    }
+
+    public static ClinicalVitalAssessResponse from(ClinicalVitalAssess e, List<VitalAssessSaveHistoryLine> chartSaveHistory) {
         ClinicalVitalAssessResponse r = new ClinicalVitalAssessResponse();
         r.vitalAssessId = e.getVitalAssessId();
         r.visitId = e.getVisitId();
@@ -62,6 +69,7 @@ public class ClinicalVitalAssessResponse {
         r.status = e.getStatus();
         r.createdAt = e.getCreatedAt();
         r.updatedAt = e.getUpdatedAt();
+        r.chartSaveHistory = chartSaveHistory != null ? chartSaveHistory : new ArrayList<>();
         return r;
     }
 }
