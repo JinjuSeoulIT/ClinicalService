@@ -43,12 +43,23 @@ public class ClinicalSupportOrderEventPublisher {
     }
 
     public void publishTestExecution(TestExecutionRegisterRequest body) {
-        if (!properties.isEnabled() || body == null) {
+        if (body == null) {
             return;
         }
-        streamBridge.send(
+        if (!properties.isEnabled()) {
+            log.warn("[진료→진료지원][Kafka] 검사오더 발행 비활성(enabled=false) orderItemId={}", body.getOrderItemId());
+            return;
+        }
+        boolean sent = streamBridge.send(
                 BINDING_OUT_TEST_EXECUTION,
                 MessageBuilder.withPayload(new Event<>(CREATE, body.getOrderItemId(), body)).build());
+        if (!sent) {
+            log.warn("[진료→진료지원][Kafka] 검사오더 발행 실패(streamBridge=false) orderItemId={}", body.getOrderItemId());
+            return;
+        }
+        log.info("[진료→진료지원][Kafka] 검사오더 발행 완료 orderItemId={} executionType={}",
+                body.getOrderItemId(),
+                body.getExecutionType());
     }
 }
 
