@@ -31,6 +31,10 @@ reception:
 clinical-support:
   order:
     enabled: ${CLINICAL_SUPPORT_ORDER_ENABLED:true}
+  api:
+    enabled: ${CLINICAL_SUPPORT_API_ENABLED:true}
+    base-url: ${CLINICAL_SUPPORT_API_BASE_URL:http://192.168.1.66:8181}
+    execution-list-cache-ttl-ms: ${CLINICAL_SUPPORT_EXECUTION_LIST_CACHE_TTL_MS:5000}
 
 billing:
   api:
@@ -68,6 +72,20 @@ app:
     enabled: ${STALE_VISIT_AUTO_CLOSE_ENABLED:true}
     cron: ${STALE_VISIT_AUTO_CLOSE_CRON:0 5 0 * * *}
     zone: ${STALE_VISIT_AUTO_CLOSE_ZONE:Asia/Seoul}
+  test-result-ready:
+    kafka:
+      enabled: ${APP_TEST_RESULT_READY_KAFKA_ENABLED:false}
+      topic: ${APP_TEST_RESULT_READY_KAFKA_TOPIC:test-result-ready}
+      group-id: ${APP_TEST_RESULT_READY_KAFKA_GROUP_ID:hospital-clinical-test-result-ready}
+      bootstrap-servers: ${APP_TEST_RESULT_READY_KAFKA_BOOTSTRAP_SERVERS:192.168.1.60:9092}
+  support-feedback:
+    kafka:
+      enabled: ${APP_SUPPORT_FEEDBACK_KAFKA_ENABLED:false}
+      bootstrap-servers: ${APP_SUPPORT_FEEDBACK_KAFKA_BOOTSTRAP_SERVERS:192.168.1.60:9092}
+      group-id: ${APP_SUPPORT_FEEDBACK_KAFKA_GROUP_ID:hospital-clinical-support-feedback}
+      topic-medication: ${APP_SUPPORT_FEEDBACK_TOPIC_MEDICATION:medicationRecord}
+      topic-treatment: ${APP_SUPPORT_FEEDBACK_TOPIC_TREATMENT:treatmentResult}
+      topic-test-execution: ${APP_SUPPORT_FEEDBACK_TOPIC_TEST_EXECUTION:testExecution}
 
 ---
 spring:

@@ -4,6 +4,7 @@ import com.example.hospitalClinical.common.exception.BusinessException;
 import com.example.hospitalClinical.common.response.ApiResponse;
 import com.example.hospitalClinical.order.dto.OrderCreateRequest;
 import com.example.hospitalClinical.order.dto.OrderResponse;
+import com.example.hospitalClinical.order.integration.clinicalsupport.inbound.SupportTestOrderStatusRefresh;
 import com.example.hospitalClinical.order.service.OrderVisitService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,7 @@ import java.util.Map;
 public class OrderController {
 
     private final OrderVisitService orderVisitService;
+    private final SupportTestOrderStatusRefresh supportTestOrderStatusRefresh;
 
     @PostMapping
     public ResponseEntity<ApiResponse<OrderResponse>> create(
@@ -56,9 +58,13 @@ public class OrderController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<OrderResponse>>> list(
             @PathVariable("visitId") Long visitId,
-            @RequestParam(value = "orderType", required = false) String orderType) {
-        log.info("[GET] /api/visits/{}/orders orderType={}", visitId, orderType);
+            @RequestParam(value = "orderType", required = false) String orderType,
+            @RequestParam(value = "syncFromSupport", defaultValue = "false") boolean syncFromSupport) {
+        log.info("[GET] /api/visits/{}/orders orderType={} syncFromSupport={}", visitId, orderType, syncFromSupport);
         try {
+            if (syncFromSupport) {
+                supportTestOrderStatusRefresh.refreshForVisit(visitId, orderType);
+            }
             List<OrderResponse> list = orderVisitService.listOrders(visitId, orderType);
             return ResponseEntity.ok(new ApiResponse<>(true, "오더 목록 조회 성공", list));
         } catch (BusinessException ex) {

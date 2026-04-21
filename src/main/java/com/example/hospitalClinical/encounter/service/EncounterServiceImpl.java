@@ -15,13 +15,14 @@ import com.example.hospitalClinical.encounter.dto.VitalAssessSaveHistoryLine;
 import com.example.hospitalClinical.encounter.dto.VisitCreateRequest;
 import com.example.hospitalClinical.encounter.dto.VisitStartRequest;
 import com.example.hospitalClinical.encounter.entity.ClinicalVitalAssess;
-import com.example.hospitalClinical.encounter.entity.ClinicalVitalAssessSaveAudit;
+import com.example.hospitalClinical.encounter.entity.VitalSaveAudit;
+import com.example.hospitalClinical.encounter.util.VitalAssessChangeSummarizer;
 import com.example.hospitalClinical.encounter.entity.Visit;
 import com.example.hospitalClinical.encounter.entity.VisitQueue;
 import com.example.hospitalClinical.encounter.entity.VisitStatusHistory;
 import com.example.hospitalClinical.encounter.exception.VisitNotFoundException;
 import com.example.hospitalClinical.encounter.repository.ClinicalVitalAssessRepo;
-import com.example.hospitalClinical.encounter.repository.ClinicalVitalAssessSaveAuditRepo;
+import com.example.hospitalClinical.encounter.repository.VitalSaveAuditRepo;
 import com.example.hospitalClinical.encounter.repository.VisitQueueRepo;
 import com.example.hospitalClinical.encounter.repository.VisitRepo;
 import com.example.hospitalClinical.encounter.repository.VisitStatusHistoryRepo;
@@ -32,12 +33,16 @@ import com.example.hospitalClinical.order.service.OrderVisitService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -51,11 +56,17 @@ import java.util.stream.Collectors;
 @Slf4j
 public class EncounterServiceImpl implements EncounterService {
 
+    private static final DateTimeFormatter VITAL_SAVE_AUDIT_AT =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+
     private static final java.util.Set<String> STARTABLE_RECEPTION_STATUSES = java.util.Set.of("WAITING", "CALLED");
+
+    @Value("${app.stale-visit-auto-close.zone:Asia/Seoul}")
+    private String staleVisitZoneId;
 
     private final VisitRepo visitRepo;
     private final ClinicalVitalAssessRepo clinicalVitalAssessRepo;
-    private final ClinicalVitalAssessSaveAuditRepo clinicalVitalAssessSaveAuditRepo;
+    private final VitalSaveAuditRepo vitalSaveAuditRepo;
     private final VisitStatusHistoryRepo visitStatusHistoryRepo;
     private final VisitQueueRepo visitQueueRepo;
     private final ReceptionClient receptionClient;
@@ -299,16 +310,14 @@ public class EncounterServiceImpl implements EncounterService {
         visitRepo.findById(visitId).orElseThrow(VisitNotFoundException::new);
         return clinicalVitalAssessRepo
                 .findByVisitId(visitId)
-                .map(
-                        e ->
-                                ClinicalVitalAssessResponse.from(
-                                        e, mapSaveAuditsToLines(clinicalVitalAssessSaveAuditRepo.findByVisitIdOrderBySaveAuditIdAsc(visitId))));
+                .map(e -> ClinicalVitalAssessResponse.from(e, loadChartSaveHistoryLines(visitId)));
     }
 
     @Override
     @Transactional
     public ClinicalVitalAssessResponse upsertClinicalVitalAssess(Long visitId, ClinicalVitalAssessSaveRequest request) {
         Visit visit = visitRepo.findById(visitId).orElseThrow(VisitNotFoundException::new);
+        assertVitalAssessSaveAllowed(visit);
         if (request.getVisitId() != null && !request.getVisitId().equals(visitId)) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "visitId가 경로와 일치하지 않습니다.");
         }
@@ -316,22 +325,56 @@ public class EncounterServiceImpl implements EncounterService {
                 clinicalVitalAssessRepo
                         .findByVisitId(visitId)
                         .orElseGet(() -> ClinicalVitalAssess.createNew(visitId, visit.getReceptionId()));
+        VitalAssessChangeSummarizer.Snapshot snap = VitalAssessChangeSummarizer.Snapshot.from(entity);
         entity.applySave(request);
         ClinicalVitalAssess saved = clinicalVitalAssessRepo.save(entity);
-        clinicalVitalAssessSaveAuditRepo.save(
-                ClinicalVitalAssessSaveAudit.create(visitId, saved.getRecordedAt()));
-        List<VitalAssessSaveHistoryLine> chartLines =
-                mapSaveAuditsToLines(clinicalVitalAssessSaveAuditRepo.findByVisitIdOrderBySaveAuditIdAsc(visitId));
-        return ClinicalVitalAssessResponse.from(saved, chartLines);
+        String changeSummary = VitalAssessChangeSummarizer.summarize(snap, saved);
+        vitalSaveAuditRepo.save(VitalSaveAudit.create(visitId, saved.getRecordedAt(), changeSummary));
+        return ClinicalVitalAssessResponse.from(saved, loadChartSaveHistoryLines(visitId));
     }
 
-    private static List<VitalAssessSaveHistoryLine> mapSaveAuditsToLines(List<ClinicalVitalAssessSaveAudit> audits) {
+    private List<VitalAssessSaveHistoryLine> loadChartSaveHistoryLines(Long visitId) {
+        try {
+            return mapSaveAuditsToLines(vitalSaveAuditRepo.findByVisitIdOrderBySaveAuditIdAsc(visitId));
+        } catch (Exception ex) {
+            log.warn("vital save audit 목록 로드 실패 visitId={}", visitId, ex);
+            return List.of();
+        }
+    }
+
+    private void assertVitalAssessSaveAllowed(Visit visit) {
+        if (visit.isTerminal()) {
+            throw new BusinessException(
+                    ErrorCode.VISIT_VITALS_EDIT_FORBIDDEN,
+                    "종료된 진료에는 활력·문진을 저장할 수 없습니다. 새 접수 후 진료를 시작해 주세요.");
+        }
+        if (!Visit.IN_PROGRESS.equals(visit.getVisitStatus())) {
+            return;
+        }
+        LocalDateTime dayStart = LocalDate.now(ZoneId.of(staleVisitZoneId)).atStartOfDay();
+        LocalDateTime startOrCreated =
+                visit.getStartTime() != null ? visit.getStartTime() : visit.getCreatedAt();
+        if (startOrCreated != null && startOrCreated.isBefore(dayStart)) {
+            throw new BusinessException(
+                    ErrorCode.VISIT_VITALS_EDIT_FORBIDDEN,
+                    "이전 일자에 시작된 진료 방문입니다. 새 접수 후 진료를 시작하거나, 해당 방문을 먼저 종료해 주세요.");
+        }
+    }
+
+    private static List<VitalAssessSaveHistoryLine> mapSaveAuditsToLines(List<VitalSaveAudit> audits) {
         return audits.stream()
                 .map(
-                        a ->
-                                new VitalAssessSaveHistoryLine(
-                                        "진료 · 차트 저장",
-                                        a.getRecordedAt() != null ? a.getRecordedAt() : a.getSavedAt()))
+                        a -> {
+                            LocalDateTime t =
+                                    a.getSavedAt() != null ? a.getSavedAt() : a.getRecordedAt();
+                            String atStr =
+                                    t == null ? "" : t.withNano(0).format(VITAL_SAVE_AUDIT_AT);
+                            String det = a.getChangeSummary();
+                            return new VitalAssessSaveHistoryLine(
+                                    "진료 · 차트 저장",
+                                    atStr,
+                                    det != null && !det.isBlank() ? det : null);
+                        })
                 .collect(Collectors.toList());
     }
 

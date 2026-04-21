@@ -7,6 +7,7 @@ public record SoapRxResponse(
         Long clinicalId,
         String medicationName,
         String dosage,
+        String frequency,
         String days
 ) {
     public static SoapRxResponse from(SoapRx p) {
@@ -15,6 +16,7 @@ public record SoapRxResponse(
                 p.getVisitId(),
                 p.getMedicationName(),
                 p.getDosage(),
+                p.getFrequency(),
                 p.getDays()
         );
     }

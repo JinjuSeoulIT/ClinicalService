@@ -257,6 +257,25 @@ public class DocumentationServiceImpl implements DocumentationService {
 
     @Override
     @Transactional
+    public Long saveSoapPrescriptionRow(
+            Long visitId, String medicationName, String dosage, String frequency, String days) {
+        assertVisit(visitId);
+        if (medicationName == null || medicationName.isBlank()) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "약품명을 입력하세요.");
+        }
+        SoapRx saved =
+                soapRxRepo.save(
+                        SoapRx.create(
+                                visitId,
+                                medicationName.trim(),
+                                trimToNull(dosage),
+                                trimToNull(frequency),
+                                trimToNull(days)));
+        return saved.getPrescriptionId();
+    }
+
+    @Override
+    @Transactional
     public SoapRxResponse addSoapRx(Long visitId, SoapRxRequest request) {
         assertVisit(visitId);
         String name = request != null && request.getMedicationName() != null
@@ -265,10 +284,15 @@ public class DocumentationServiceImpl implements DocumentationService {
         if (name.isEmpty()) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "약품명을 입력하세요.");
         }
-        String dosage = trimToNull(request != null ? request.getDosage() : null);
-        String days = trimToNull(request != null ? request.getDays() : null);
-        SoapRx saved = soapRxRepo.save(SoapRx.create(visitId, name, dosage, days));
-        return SoapRxResponse.from(saved);
+        Long id =
+                saveSoapPrescriptionRow(
+                        visitId,
+                        name,
+                        request != null ? request.getDosage() : null,
+                        request != null ? request.getFrequency() : null,
+                        request != null ? request.getDays() : null);
+        return SoapRxResponse.from(
+                soapRxRepo.findById(id).orElseThrow(() -> new IllegalStateException("SoapRx not found id=" + id)));
     }
 
     @Override
@@ -283,7 +307,13 @@ public class DocumentationServiceImpl implements DocumentationService {
 
     @Override
     @Transactional
-    public void updateSoapRx(Long visitId, Long prescriptionId, String medicationName, String dosage, String days) {
+    public void updateSoapRx(
+            Long visitId,
+            Long prescriptionId,
+            String medicationName,
+            String dosage,
+            String frequency,
+            String days) {
         assertVisit(visitId);
         SoapRx p = soapRxRepo
                 .findByPrescriptionIdAndVisitId(prescriptionId, visitId)
@@ -298,9 +328,37 @@ public class DocumentationServiceImpl implements DocumentationService {
         if (dosage != null) {
             p.setDosage(trimToNull(dosage));
         }
+        if (frequency != null) {
+            p.setFrequency(trimToNull(frequency));
+        }
         if (days != null) {
             p.setDays(trimToNull(days));
         }
+        soapRxRepo.save(p);
+    }
+
+    @Override
+    @Transactional
+    public void replaceSoapPrescriptionFromOrder(
+            Long visitId,
+            Long prescriptionId,
+            String medicationName,
+            String dosage,
+            String frequency,
+            String days) {
+        assertVisit(visitId);
+        SoapRx p = soapRxRepo
+                .findByPrescriptionIdAndVisitId(prescriptionId, visitId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST, "처방을 찾을 수 없습니다."));
+        if (medicationName != null) {
+            String name = medicationName.trim();
+            if (!name.isEmpty()) {
+                p.setMedicationName(name);
+            }
+        }
+        p.setDosage(trimToNull(dosage));
+        p.setFrequency(trimToNull(frequency));
+        p.setDays(trimToNull(days));
         soapRxRepo.save(p);
     }
 

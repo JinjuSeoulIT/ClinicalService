@@ -4,6 +4,7 @@ public class SoapRxRequest {
 
     private String medicationName;
     private String dosage;
+    private String frequency;
     private String days;
 
     public String getMedicationName() {
@@ -20,6 +21,14 @@ public class SoapRxRequest {
 
     public void setDosage(String dosage) {
         this.dosage = dosage;
+    }
+
+    public String getFrequency() {
+        return frequency;
+    }
+
+    public void setFrequency(String frequency) {
+        this.frequency = frequency;
     }
 
     public String getDays() {

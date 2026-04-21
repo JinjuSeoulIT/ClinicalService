@@ -154,6 +154,7 @@ public class OrderVisitServiceImpl implements OrderVisitService {
                     legacyId,
                     body != null ? body.getItemName() : null,
                     body != null ? body.getDosage() : null,
+                    body != null ? body.getFrequency() : null,
                     body != null ? body.getDuration() : null);
             SoapRx rx = soapRxRepo
                     .findByPrescriptionIdAndVisitId(legacyId, visitId)
@@ -267,8 +268,15 @@ public class OrderVisitServiceImpl implements OrderVisitService {
     @Override
     public OrderItem getOrderItem(Long orderItemId) {
         return orderItemRepo
-                .findById(orderItemId)
-                .orElseThrow(() -> new IllegalArgumentException("OrderItem not found: " + orderItemId));
+                .findWithOrderByOrderItemId(orderItemId)
+                .orElseGet(
+                        () ->
+                                orderItemRepo
+                                        .findById(orderItemId)
+                                        .orElseThrow(
+                                                () ->
+                                                        new IllegalArgumentException(
+                                                                "OrderItem not found: " + orderItemId)));
     }
 
     @Override
@@ -280,6 +288,32 @@ public class OrderVisitServiceImpl implements OrderVisitService {
     @Transactional
     public OrderItem updateOrderItem(Long orderItemId, OrderItemCreateRequest request) {
         OrderItem item = getOrderItem(orderItemId);
+        Order ord = item.getOrder();
+        if (ord != null && ord.getOrderType() != null && ord.getOrderType().isPrescription()) {
+            if (request.getItemCode() != null) {
+                item.setItemCode(trimToNull(request.getItemCode()));
+            }
+            if (request.getItemDetailCode() != null) {
+                item.setItemDetailCode(request.getItemDetailCode().trim());
+            } else {
+                OrderItemResponse.PrescriptionLineFields cur =
+                        OrderItemResponse.decodePrescriptionLineFields(item.getItemDetailCode());
+                String nextName =
+                        request.getItemName() != null
+                                ? OrderItemResponse.stripEncodedOrderItemSuffix(request.getItemName().trim())
+                                : cur.displayName();
+                String nextDosage =
+                        request.getDosage() != null ? trimToNull(request.getDosage()) : cur.dosage();
+                String nextFreq =
+                        request.getFrequency() != null ? trimToNull(request.getFrequency()) : cur.frequency();
+                String nextDur =
+                        request.getDuration() != null ? trimToNull(request.getDuration()) : cur.duration();
+                item.setItemDetailCode(
+                        OrderItemResponse.encodePrescriptionLineFields(
+                                nextName, nextDosage, nextFreq, nextDur));
+            }
+            return orderItemRepo.save(item);
+        }
         if (request.getItemCode() != null) {
             item.setItemCode(trimToNull(request.getItemCode()));
         }
@@ -315,7 +349,25 @@ public class OrderVisitServiceImpl implements OrderVisitService {
         if (item.getOrder() == null || !item.getOrder().getOrderId().equals(orderId)) {
             throw new OrderNotFoundException();
         }
-        return updateOrderItem(orderItemId, request);
+        OrderItem updated = updateOrderItem(orderItemId, request);
+        Order refreshed = requireOrderForVisit(visitId, orderId);
+        if (refreshed.getLegacyPrescriptionId() == null) {
+            attachSoapPrescriptionMirror(visitId, refreshed);
+        } else {
+            syncLinkedSoapRxAfterPrescriptionItemSave(visitId, refreshed, updated);
+        }
+        return updated;
+    }
+
+    private void syncLinkedSoapRxAfterPrescriptionItemSave(Long visitId, Order order, OrderItem item) {
+        Long lid = order.getLegacyPrescriptionId();
+        if (lid == null) {
+            return;
+        }
+        OrderItemResponse.PrescriptionLineFields f =
+                OrderItemResponse.decodePrescriptionLineFields(item.getItemDetailCode());
+        documentationService.replaceSoapPrescriptionFromOrder(
+                visitId, lid, f.displayName(), f.dosage(), f.frequency(), f.duration());
     }
 
     @Override
@@ -329,7 +381,11 @@ public class OrderVisitServiceImpl implements OrderVisitService {
         if (item.getOrder() == null || !item.getOrder().getOrderId().equals(orderId)) {
             throw new OrderNotFoundException();
         }
+        Long legacyRx = o.getLegacyPrescriptionId();
         deleteOrderItem(orderId, orderItemId);
+        if (legacyRx != null && !orderRepo.existsById(orderId)) {
+            documentationService.removeSoapRx(visitId, legacyRx);
+        }
     }
 
     @Override
@@ -566,7 +622,34 @@ public class OrderVisitServiceImpl implements OrderVisitService {
         }
         Order saved = orderRepo.saveAndFlush(o);
         publishLabOrderCommittedIfNeeded(saved);
+        if (orderType.isPrescription()) {
+            attachSoapPrescriptionMirror(visitId, saved);
+        }
         return saved;
+    }
+
+    private void attachSoapPrescriptionMirror(Long visitId, Order order) {
+        if (order.getLegacyPrescriptionId() != null) {
+            return;
+        }
+        if (order.getItems() == null || order.getItems().isEmpty()) {
+            return;
+        }
+        OrderItem first = order.getItems().get(0);
+        OrderItemResponse.PrescriptionLineFields f =
+                OrderItemResponse.decodePrescriptionLineFields(first.getItemDetailCode());
+        if (f.displayName() == null || f.displayName().isBlank()) {
+            return;
+        }
+        Long rxId =
+                documentationService.saveSoapPrescriptionRow(
+                        visitId,
+                        f.displayName(),
+                        f.dosage(),
+                        f.frequency(),
+                        f.duration());
+        order.setLegacyPrescriptionId(rxId);
+        orderRepo.save(order);
     }
 
     private Order requireOrderForVisit(Long visitId, Long orderId) {
@@ -650,11 +733,11 @@ public class OrderVisitServiceImpl implements OrderVisitService {
             throw new BusinessException(ErrorCode.INVALID_REQUEST);
         }
         if (orderType.isPrescription()) {
-            return OrderItem.createPrescriptionLine(
-                    OrderItemResponse.stripEncodedOrderItemSuffix(req.getItemName().trim()),
-                    patientId,
-                    patientName,
-                    departmentName);
+            String nm = OrderItemResponse.stripEncodedOrderItemSuffix(req.getItemName().trim());
+            String detail =
+                    OrderItemResponse.encodePrescriptionLineFields(
+                            nm, trimToNull(req.getDosage()), trimToNull(req.getFrequency()), trimToNull(req.getDuration()));
+            return OrderItem.createPrescriptionLine(detail, patientId, patientName, departmentName);
         }
         if (orderType.isTestCategory()) {
             String groupCode = labGroupCodeForOrderType(orderType);
@@ -741,10 +824,10 @@ public class OrderVisitServiceImpl implements OrderVisitService {
         String nm = OrderItemResponse.stripEncodedOrderItemSuffix(rx.getMedicationName());
         r.setItemDetailCode(nm);
         r.setItemName(nm);
-        r.setDosage(null);
+        r.setDosage(rx.getDosage());
         r.setDose(null);
-        r.setFrequency(null);
-        r.setDuration(null);
+        r.setFrequency(rx.getFrequency());
+        r.setDuration(rx.getDays());
         r.setCreatedAt(rx.getCreatedAt());
         return r;
     }

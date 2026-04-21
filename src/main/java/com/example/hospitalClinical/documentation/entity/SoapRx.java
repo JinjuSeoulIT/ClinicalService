@@ -23,6 +23,9 @@ public class SoapRx {
     @Column(name = "DOSAGE", length = 200)
     private String dosage;
 
+    @Column(name = "FREQUENCY", length = 100)
+    private String frequency;
+
     @Column(name = "DAYS", length = 50)
     private String days;
 
@@ -34,11 +37,13 @@ public class SoapRx {
 
     protected SoapRx() {}
 
-    public static SoapRx create(Long visitId, String medicationName, String dosage, String days) {
+    public static SoapRx create(
+            Long visitId, String medicationName, String dosage, String frequency, String days) {
         SoapRx p = new SoapRx();
         p.visitId = visitId;
         p.medicationName = medicationName;
         p.dosage = dosage;
+        p.frequency = frequency;
         p.days = days;
         return p;
     }
@@ -75,12 +80,20 @@ public class SoapRx {
         return days;
     }
 
+    public String getFrequency() {
+        return frequency;
+    }
+
     public void setMedicationName(String medicationName) {
         this.medicationName = medicationName;
     }
 
     public void setDosage(String dosage) {
         this.dosage = dosage;
+    }
+
+    public void setFrequency(String frequency) {
+        this.frequency = frequency;
     }
 
     public void setDays(String days) {

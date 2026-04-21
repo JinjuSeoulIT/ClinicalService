@@ -103,6 +103,10 @@ public class MedicationRecord {
         return status;
     }
 
+    public void setStatus(String status) {
+        this.status = status != null && !status.isBlank() ? status.trim() : "REQUESTED";
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }

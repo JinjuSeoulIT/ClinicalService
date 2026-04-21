@@ -58,6 +58,18 @@ public interface DocumentationService {
             Long prescriptionId,
             String medicationName,
             String dosage,
+            String frequency,
+            String days);
+
+    Long saveSoapPrescriptionRow(
+            Long visitId, String medicationName, String dosage, String frequency, String days);
+
+    void replaceSoapPrescriptionFromOrder(
+            Long visitId,
+            Long prescriptionId,
+            String medicationName,
+            String dosage,
+            String frequency,
             String days);
 
     List<StandardDiagnosisItemDto> searchStandardDiagnosisMasters(

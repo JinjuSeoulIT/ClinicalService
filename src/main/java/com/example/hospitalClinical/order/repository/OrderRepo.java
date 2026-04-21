@@ -10,7 +10,10 @@ import java.util.Optional;
 
 public interface OrderRepo extends JpaRepository<Order, Long> {
 
-    boolean existsByLegacyPrescriptionId(Long legacyPrescriptionId);
+    @Query(
+            "SELECT CASE WHEN COUNT(o) > 0 THEN true ELSE false END FROM OrderHeader o WHERE"
+                    + " o.legacyPrescriptionId = :legacyPrescriptionId")
+    boolean existsByLegacyPrescriptionId(@Param("legacyPrescriptionId") Long legacyPrescriptionId);
 
     @Query("SELECT DISTINCT o FROM OrderHeader o LEFT JOIN FETCH o.items WHERE o.visitId = :visitId ORDER BY o.orderDate DESC")
     List<Order> findByVisitIdOrderByOrderDateDesc(@Param("visitId") Long visitId);

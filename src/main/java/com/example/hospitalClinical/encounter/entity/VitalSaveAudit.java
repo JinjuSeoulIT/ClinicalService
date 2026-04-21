@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "CLINICAL_VITAL_SAVE_AUDIT")
-public class ClinicalVitalAssessSaveAudit {
+public class VitalSaveAudit {
 
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "clinical_vital_save_audit_seq")
@@ -33,12 +33,16 @@ public class ClinicalVitalAssessSaveAudit {
     @Column(name = "SAVED_AT", nullable = false)
     private LocalDateTime savedAt;
 
-    protected ClinicalVitalAssessSaveAudit() {}
+    @Column(name = "CHANGE_SUMMARY", length = 4000)
+    private String changeSummary;
 
-    public static ClinicalVitalAssessSaveAudit create(Long visitId, LocalDateTime recordedAt) {
-        ClinicalVitalAssessSaveAudit a = new ClinicalVitalAssessSaveAudit();
+    protected VitalSaveAudit() {}
+
+    public static VitalSaveAudit create(Long visitId, LocalDateTime recordedAt, String changeSummary) {
+        VitalSaveAudit a = new VitalSaveAudit();
         a.visitId = visitId;
         a.recordedAt = recordedAt;
+        a.changeSummary = changeSummary != null && !changeSummary.isBlank() ? changeSummary : null;
         return a;
     }
 
@@ -63,5 +67,9 @@ public class ClinicalVitalAssessSaveAudit {
 
     public LocalDateTime getSavedAt() {
         return savedAt;
+    }
+
+    public String getChangeSummary() {
+        return changeSummary;
     }
 }

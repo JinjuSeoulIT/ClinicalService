@@ -17,6 +17,9 @@ public enum ErrorCode {
     DOCTOR_VISIT_ALREADY_IN_PROGRESS(
             HttpStatus.BAD_REQUEST,
             "다른 환자의 진료가 진행 중입니다. 진료 완료 후 신규 진료를 시작해 주세요."),
+    VISIT_VITALS_EDIT_FORBIDDEN(
+            HttpStatus.BAD_REQUEST,
+            "이 진료 방문에는 활력·문진을 저장할 수 없습니다. 새 접수 후 진료를 시작해 주세요."),
 
     // RECEPTION (접수 서비스 연동)
     RECEPTION_NOT_FOUND(HttpStatus.NOT_FOUND, "접수를 찾을 수 없습니다."),
